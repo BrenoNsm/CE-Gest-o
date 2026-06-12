@@ -33,7 +33,7 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
 
   // Cronograma Fases
   const [fasePlanejamento, setFasePlanejamento] = useState<Fase>({
-    id: 'p1', nome: 'Planejamento', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
+    id: '', nome: 'Planejamento', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
   });
   const [faseExecucao, setFaseExecucao] = useState<Fase>({
     id: 'p2', nome: 'Execução', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
@@ -100,13 +100,13 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
 
       // Setup standard phase dates
       setFasePlanejamento({
-        id: 'p1', nome: 'Planejamento', dataInicio: '2026-05-05', dataFim: '2026-05-15', duracaoDiasUteis: 9, status: 'Pendente'
+        id: '', nome: 'Planejamento', dataInicio: '2026-05-05', dataFim: '2026-05-15', duracaoDiasUteis: 9, status: 'Pendente'
       });
       setFaseExecucao({
-        id: 'p2', nome: 'Execução', dataInicio: '2026-05-18', dataFim: '2026-09-30', duracaoDiasUteis: 92, status: 'Pendente'
+        id: '', nome: 'Execução', dataInicio: '2026-05-18', dataFim: '2026-09-30', duracaoDiasUteis: 92, status: 'Pendente'
       });
       setFaseRelatorio({
-        id: 'p3', nome: 'Relatório', dataInicio: '2026-10-01', dataFim: '2026-12-18', duracaoDiasUteis: 51, status: 'Pendente'
+        id: '', nome: 'Relatório', dataInicio: '2026-10-01', dataFim: '2026-12-18', duracaoDiasUteis: 51, status: 'Pendente'
       });
     }
   }, [editingPortaria, currentUser.sector]);
@@ -224,9 +224,18 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
       },
       unidadesJurisdicionadas: unidades,
       cronograma: [
-        { ...fasePlanejamento, id: fasePlanejamento.id || 'p-plan-' + Date.now() },
-        { ...faseExecucao, id: faseExecucao.id || 'p-exec-' + Date.now() },
-        { ...faseRelatorio, id: faseRelatorio.id || 'p-rep-' + Date.now() }
+        { 
+          ...fasePlanejamento, 
+          id: fasePlanejamento.id || `phase-plan-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
+        },
+        { 
+          ...faseExecucao, 
+          id: faseExecucao.id || `phase-exec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
+        },
+        { 
+          ...faseRelatorio, 
+          id: faseRelatorio.id || `phase-rel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` 
+        }
       ],
       supervisor: {
         nome: assignedSup.nome,

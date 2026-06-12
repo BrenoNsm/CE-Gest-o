@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { User, Portaria, AuditLog, LogExcluido, SystemNotification } from './types';
-
 // Components
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -11,7 +10,6 @@ import ReportsView from './components/ReportsView';
 import LogsView from './components/LogsView';
 import CalendarView from './components/CalendarView';
 import VacationsView from './components/VacationsView';
-
 // Icons
 import { Award, ShieldCheck, LogIn, Lock, User as UserIcon, Building2, HelpCircle, AlertOctagon, UserPlus } from 'lucide-react';
 
@@ -21,12 +19,11 @@ export default function App() {
     const saved = localStorage.getItem('sgp_current_user');
     return saved ? JSON.parse(saved) : null;
   });
-
   const [matriculaInput, setMatriculaInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginTab, setLoginTab] = useState<'login' | 'register'>('login');
-
+  
   // Registration states
   const [regMatricula, setRegMatricula] = useState('');
   const [regNome, setRegNome] = useState('');
@@ -42,7 +39,6 @@ export default function App() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [logsExcluidos, setLogsExcluidos] = useState<LogExcluido[]>([]);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
-  
   const [loading, setLoading] = useState(true);
 
   // UI/Navigation States
@@ -50,9 +46,9 @@ export default function App() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPortaria, setEditingPortaria] = useState<Portaria | null>(null);
   
-  // Cross-view notification handler (navigating from dashboard straight to a specific detail)
+  // Cross-view notification handler
   const [selectedPortariaExternal, setSelectedPortariaExternal] = useState<Portaria | null>(null);
-
+  
   // Global search query
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -65,16 +61,16 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // Load database tables from localhost server API
+  // Load database tables from localhost server API (COM BARRA FINAL)
   const loadData = async () => {
     try {
       setLoading(true);
       const [rUsers, rPortarias, rLogs, rLogsExcluidos, rNotifs] = await Promise.all([
-        fetch('/api/users').then(res => res.json()),
-        fetch('/api/portarias').then(res => res.json()),
-        fetch('/api/logs').then(res => res.json()),
-        fetch('/api/logs-excluidos').then(res => res.json()),
-        fetch('/api/notifications').then(res => res.json()),
+        fetch('/api/users/').then(res => res.json()),
+        fetch('/api/portarias/').then(res => res.json()),
+        fetch('/api/logs/').then(res => res.json()),
+        fetch('/api/logs-excluidos/').then(res => res.json()),
+        fetch('/api/notifications/').then(res => res.json()),
       ]);
       setUsers(rUsers);
       setPortarias(rPortarias);
@@ -83,6 +79,7 @@ export default function App() {
       setNotifications(rNotifs);
     } catch (err) {
       console.error("Erro ao carregar dados relacionais do servidor local:", err);
+      setLoginError("Erro de conexão com o servidor Django. Verifique se ele está rodando na porta 8000.");
     } finally {
       setLoading(false);
     }
@@ -96,16 +93,12 @@ export default function App() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-
     if (!matriculaInput.trim()) {
       setLoginError('Informe a matrícula funcional.');
       return;
     }
 
-    // Authenticate matching functional registration code 'matricula' against dynamic DB list
-    const foundUser = users.find(
-      u => u.matricula.trim() === matriculaInput.trim()
-    );
+    const foundUser = users.find(u => u.matricula.trim() === matriculaInput.trim());
 
     if (foundUser) {
       setCurrentUser(foundUser);
@@ -116,11 +109,10 @@ export default function App() {
     }
   };
 
-  // Register New Server handler
+  // Register New Server handler (COM BARRA FINAL)
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-
     if (!regMatricula.trim() || !regNome.trim() || !regCargo.trim() || !regEmail.trim()) {
       setLoginError('Preencha todos os campos obrigatórios.');
       return;
@@ -139,7 +131,7 @@ export default function App() {
     };
 
     try {
-      const res = await fetch('/api/users', {
+      const res = await fetch('/api/users/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser)
@@ -170,7 +162,7 @@ export default function App() {
     setEditingPortaria(null);
   };
 
-  // Add notification routine to backend API
+  // Add notification routine to backend API (COM BARRA FINAL)
   const handleDispatchNotification = async (title: string, message: string, type: any, portariaId: string, targetSector: string) => {
     const newNotif = {
       id: 'notif-' + Date.now(),
@@ -182,9 +174,8 @@ export default function App() {
       lida: false,
       sector: targetSector
     };
-
     try {
-      const res = await fetch('/api/notifications', {
+      const res = await fetch('/api/notifications/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newNotif)
@@ -198,24 +189,23 @@ export default function App() {
     }
   };
 
-  // Core Mutation: Save or Update Portaria via API
+  // Core Mutation: Save or Update Portaria via API (COM BARRA FINAL)
   const handleSavePortaria = async (savedPortaria: Portaria) => {
     if (!currentUser) return;
-
     const exists = portarias.some(p => p.id === savedPortaria.id);
     let details = '';
 
     try {
       let res;
       if (exists) {
-        res = await fetch(`/api/portarias/${savedPortaria.id}`, {
+        res = await fetch(`/api/portarias/${savedPortaria.id}/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(savedPortaria)
         });
         details = `Atualizou dados da portaria ${savedPortaria.numero}.`;
       } else {
-        res = await fetch(`/api/portarias`, {
+        res = await fetch('/api/portarias/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(savedPortaria)
@@ -232,40 +222,17 @@ export default function App() {
 
       if (exists) {
         setPortarias(prev => prev.map(p => p.id === savedObj.id ? savedObj : p));
-        await handleDispatchNotification(
-          'Portaria Atualizada',
-          `A Portaria ${savedObj.numero} sofreu modificações cadastrais.`,
-          'status_alterado',
-          savedObj.id,
-          currentUser.sector
-        );
+        await handleDispatchNotification('Portaria Atualizada', `A Portaria ${savedObj.numero} sofreu modificações cadastrais.`, 'status_alterado', savedObj.id, currentUser.sector);
       } else {
         setPortarias(prev => [savedObj, ...prev]);
-        await handleDispatchNotification(
-          'Nova Portaria Designada',
-          `Você foi designado para acompanhar o processo ${savedObj.numero}.`,
-          'atribuicao',
-          savedObj.id,
-          currentUser.sector
-        );
+        await handleDispatchNotification('Nova Portaria Designada', `Você foi designado para acompanhar o processo ${savedObj.numero}.`, 'atribuicao', savedObj.id, currentUser.sector);
 
-        // Check if designated auditor exceeds overload limit
-        const currentActiveCount = portarias.filter(
-          p => p.status === 'Ativa' && p.auditorDesignado.matricula === savedObj.auditorDesignado.matricula && p.sector === currentUser.sector
-        ).length + 1;
-        
+        const currentActiveCount = portarias.filter(p => p.status === 'Ativa' && p.auditorDesignado.matricula === savedObj.auditorDesignado.matricula && p.sector === currentUser.sector).length + 1;
         if (currentActiveCount >= 4) {
-          await handleDispatchNotification(
-            'Alerta de Sobrecarga',
-            `O auditor designado ${savedObj.auditorDesignado.nome.split(' ')[0]} acumulou ${currentActiveCount} processos ativos simultâneos.`,
-            'atrasomed',
-            savedObj.id,
-            currentUser.sector
-          );
+          await handleDispatchNotification('Alerta de Sobrecarga', `O auditor designado ${savedObj.auditorDesignado.nome.split(' ')[0]} acumulou ${currentActiveCount} processos ativos simultâneos.`, 'atrasomed', savedObj.id, currentUser.sector);
         }
       }
 
-      // Log action
       const newChangeLog = {
         id: 'log-' + Date.now(),
         portariaId: savedObj.id,
@@ -277,7 +244,7 @@ export default function App() {
         sector: currentUser.sector
       };
 
-      const logRes = await fetch('/api/logs', {
+      const logRes = await fetch('/api/logs/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newChangeLog)
@@ -294,17 +261,16 @@ export default function App() {
     }
   };
 
-  // Core Mutation: Delete Portaria via API
+  // Core Mutation: Delete Portaria via API (COM BARRA FINAL)
   const handleDeletePortaria = async (id: string) => {
     if (!currentUser) return;
     const target = portarias.find(p => p.id === id);
     if (!target) return;
-
     const confirm = window.confirm(`Deseja realmente excluir a Portaria ${target.numero}?`);
     if (!confirm) return;
 
     try {
-      const delRes = await fetch(`/api/portarias/${id}`, {
+      const delRes = await fetch(`/api/portarias/${id}/`, {
         method: 'DELETE'
       });
       if (!delRes.ok) {
@@ -313,7 +279,6 @@ export default function App() {
 
       setPortarias(prev => prev.filter(p => p.id !== id));
 
-      // Register deleted log
       const newDeletedLog = {
         id: 'del-' + Date.now(),
         numeroPortaria: target.numero,
@@ -322,7 +287,7 @@ export default function App() {
         sector: currentUser.sector
       };
 
-      const logDelRes = await fetch('/api/logs-excluidos', {
+      const logDelRes = await fetch('/api/logs-excluidos/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDeletedLog)
@@ -332,7 +297,6 @@ export default function App() {
         setLogsExcluidos(prev => [...prev, deletedLogged]);
       }
 
-      // Deletion audit log
       const deletionAuditLog = {
         id: 'log-' + Date.now(),
         portariaId: id,
@@ -344,7 +308,7 @@ export default function App() {
         sector: currentUser.sector
       };
 
-      const auditRes = await fetch('/api/logs', {
+      const auditRes = await fetch('/api/logs/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(deletionAuditLog)
@@ -358,12 +322,11 @@ export default function App() {
     }
   };
 
-  // Inline Detailed update (comments, attachments, phase status) via API
+  // Inline Detailed update (COM BARRA FINAL)
   const handleUpdatePortariaInline = async (updatedPortaria: Portaria, changeDetails: string) => {
     if (!currentUser) return;
-
     try {
-      const res = await fetch(`/api/portarias/${updatedPortaria.id}`, {
+      const res = await fetch(`/api/portarias/${updatedPortaria.id}/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedPortaria)
@@ -376,7 +339,6 @@ export default function App() {
       const savedObj = await res.json();
       setPortarias(prev => prev.map(p => p.id === savedObj.id ? savedObj : p));
 
-      // Add Log
       const newLog = {
         id: 'log-' + Date.now(),
         portariaId: savedObj.id,
@@ -388,7 +350,7 @@ export default function App() {
         sector: currentUser.sector
       };
 
-      const logRes = await fetch('/api/logs', {
+      const logRes = await fetch('/api/logs/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog)
@@ -402,10 +364,10 @@ export default function App() {
     }
   };
 
-  // Read notifications on backend API
+  // Read notifications on backend API (COM BARRA FINAL)
   const handleMarkNotification = async (id: string) => {
     try {
-      const res = await fetch(`/api/notifications/${id}`, {
+      const res = await fetch(`/api/notifications/${id}/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lida: true })
@@ -422,7 +384,7 @@ export default function App() {
   const handleMarkAllNotifications = async () => {
     if (!currentUser) return;
     try {
-      const res = await fetch(`/api/notifications/mark-all-read/${currentUser.sector}`, {
+      const res = await fetch(`/api/notifications/mark-all-read/${currentUser.sector}/`, {
         method: 'PUT'
       });
       if (res.ok) {
@@ -433,10 +395,10 @@ export default function App() {
     }
   };
 
-  // Vacations mutation handlers
+  // Vacations mutation handlers (COM BARRA FINAL)
   const handleAddVacation = async (vacationData: any) => {
     try {
-      const res = await fetch('/api/vacations', {
+      const res = await fetch('/api/vacations/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...vacationData, id: 'vac-' + Date.now(), dataCadastro: new Date().toISOString() })
@@ -446,19 +408,17 @@ export default function App() {
         throw new Error(err.error || 'Erro ao cadastrar férias.');
       }
       
-      const usersRes = await fetch('/api/users');
+      const usersRes = await fetch('/api/users/');
       if (usersRes.ok) {
         const updatedUsers = await usersRes.json();
         setUsers(updatedUsers);
         if (currentUser && currentUser.id === vacationData.userId) {
           const updatedSelf = updatedUsers.find((u: User) => u.id === currentUser.id);
-          if (updatedSelf) {
-            setCurrentUser(updatedSelf);
-          }
+          if (updatedSelf) setCurrentUser(updatedSelf);
         }
       }
       
-      const logsRes = await fetch('/api/logs');
+      const logsRes = await fetch('/api/logs/');
       if (logsRes.ok) {
         const updatedLogs = await logsRes.json();
         setLogs(updatedLogs);
@@ -471,26 +431,24 @@ export default function App() {
 
   const handleDeleteVacation = async (id: string) => {
     try {
-      const res = await fetch(`/api/vacations/${id}`, {
+      const res = await fetch(`/api/vacations/${id}/`, {
         method: 'DELETE'
       });
       if (!res.ok) {
         throw new Error('Erro ao deletar férias no servidor.');
       }
-
-      const usersRes = await fetch('/api/users');
+      
+      const usersRes = await fetch('/api/users/');
       if (usersRes.ok) {
         const updatedUsers = await usersRes.json();
         setUsers(updatedUsers);
         if (currentUser) {
           const updatedSelf = updatedUsers.find((u: User) => u.id === currentUser.id);
-          if (updatedSelf) {
-            setCurrentUser(updatedSelf);
-          }
+          if (updatedSelf) setCurrentUser(updatedSelf);
         }
       }
 
-      const logsRes = await fetch('/api/logs');
+      const logsRes = await fetch('/api/logs/');
       if (logsRes.ok) {
         const updatedLogs = await logsRes.json();
         setLogs(updatedLogs);
@@ -501,347 +459,157 @@ export default function App() {
     }
   };
 
-
-
-  // Navigating to direct detail from dashboard calendars
   const handleNavigateToPortariaDetail = (p: Portaria) => {
     setSelectedPortariaExternal(p);
     setActiveView('portarias');
   };
 
-  // Render Section Selector based on activeView
   const renderMainContent = () => {
     if (!currentUser) return null;
-
     switch (activeView) {
       case 'dashboard':
-        return (
-          <DashboardView
-            currentUser={currentUser}
-            portarias={portarias}
-            onSelectPortaria={handleNavigateToPortariaDetail}
-          />
-        );
+        return <DashboardView currentUser={currentUser} portarias={portarias} onSelectPortaria={handleNavigateToPortariaDetail} />;
       case 'portarias':
         if (isFormOpen) {
-          return (
-            <PortariaForm
-              currentUser={currentUser}
-              users={users}
-              editingPortaria={editingPortaria}
-              onSave={handleSavePortaria}
-              onCancel={() => {
-                setIsFormOpen(false);
-                setEditingPortaria(null);
-              }}
-            />
-          );
+          return <PortariaForm currentUser={currentUser} users={users} editingPortaria={editingPortaria} onSave={handleSavePortaria} onCancel={() => { setIsFormOpen(false); setEditingPortaria(null); }} />;
         }
-        return (
-          <PortariaList
-            currentUser={currentUser}
-            portarias={portarias}
-            searchTerm={searchTerm}
-            onEdit={(p) => {
-              setEditingPortaria(p);
-              setIsFormOpen(true);
-            }}
-            onDelete={handleDeletePortaria}
-            onUpdatePortaria={handleUpdatePortariaInline}
-            onAddNewClick={() => {
-              setEditingPortaria(null);
-              setIsFormOpen(true);
-            }}
-            selectedPortariaExternal={selectedPortariaExternal}
-            setSelectedPortariaExternal={setSelectedPortariaExternal}
-          />
-        );
+        return <PortariaList currentUser={currentUser} portarias={portarias} searchTerm={searchTerm} onEdit={(p) => { setEditingPortaria(p); setIsFormOpen(true); }} onDelete={handleDeletePortaria} onUpdatePortaria={handleUpdatePortariaInline} onAddNewClick={() => { setEditingPortaria(null); setIsFormOpen(true); }} selectedPortariaExternal={selectedPortariaExternal} setSelectedPortariaExternal={setSelectedPortariaExternal} />;
       case 'relatorios':
-        return (
-          <ReportsView
-            currentUser={currentUser}
-            portarias={portarias}
-          />
-        );
+        return <ReportsView currentUser={currentUser} portarias={portarias} />;
       case 'logs':
-        return (
-          <LogsView
-            currentUser={currentUser}
-            logs={logs}
-            logsExcluidos={logsExcluidos}
-          />
-        );
+        return <LogsView currentUser={currentUser} logs={logs} logsExcluidos={logsExcluidos} />;
       case 'calendar':
-        return (
-          <CalendarView
-            currentUser={currentUser}
-            portarias={portarias}
-            users={users}
-          />
-        );
+        return <CalendarView currentUser={currentUser} portarias={portarias} users={users} />;
       case 'vacations':
-        return (
-          <VacationsView
-            currentUser={currentUser}
-            users={users}
-            onAddVacation={handleAddVacation}
-            onDeleteVacation={handleDeleteVacation}
-          />
-        );
+        return <VacationsView currentUser={currentUser} users={users} onAddVacation={handleAddVacation} onDeleteVacation={handleDeleteVacation} />;
       default:
         return null;
     }
   };
 
-  // Login Screen render
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
-        
-        {/* Court institutional emblem card */}
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
-            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-blue-600 to-blue-800 shadow-xl border border-blue-400">
+            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-800 shadow-xl border border-blue-400">
               <Award className="h-9 w-9 text-yellow-400" />
             </div>
-            <h1 className="text-xl font-extrabold tracking-tight text-white uppercase sm:text-2xl">
-              TCE - Roraima
-            </h1>
-            <p className="text-xs text-blue-300 uppercase tracking-widest font-semibold font-sans">
-              Sistema de Portarias de Fiscalização (SGP)
-            </p>
+            <h1 className="text-xl font-extrabold tracking-tight text-white uppercase sm:text-2xl">TCE - Roraima</h1>
+            <p className="text-xs text-blue-300 uppercase tracking-widest font-semibold font-sans">Sistema de Portarias de Fiscalização (SGP)</p>
           </div>
 
           <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-700/30">
-            {/* Tabs Selector */}
             <div className="flex bg-blue-950 p-1">
-              <button
-                onClick={() => { setLoginTab('login'); setLoginError(''); }}
-                className={`flex-1 text-center py-2.5 text-xs font-bold uppercase tracking-wider rounded-t-lg transition-colors ${
-                  loginTab === 'login' ? 'bg-white text-blue-950' : 'text-blue-200 hover:text-white'
-                }`}
-              >
-                Autenticação
-              </button>
-              <button
-                onClick={() => { setLoginTab('register'); setLoginError(''); }}
-                className={`flex-1 text-center py-2.5 text-xs font-bold uppercase tracking-wider rounded-t-lg transition-colors ${
-                  loginTab === 'register' ? 'bg-white text-blue-950' : 'text-blue-200 hover:text-white'
-                }`}
-              >
-                Registrar Servidor
-              </button>
+              <button onClick={() => { setLoginTab('login'); setLoginError(''); }} className={`flex-1 text-center py-2.5 text-xs font-bold uppercase tracking-wider rounded-t-lg transition-colors ${loginTab === 'login' ? 'bg-white text-blue-950' : 'text-blue-200 hover:text-white'}`}>Autenticação</button>
+              <button onClick={() => { setLoginTab('register'); setLoginError(''); }} className={`flex-1 text-center py-2.5 text-xs font-bold uppercase tracking-wider rounded-t-lg transition-colors ${loginTab === 'register' ? 'bg-white text-blue-950' : 'text-blue-200 hover:text-white'}`}>Registrar Servidor</button>
             </div>
 
             {loginTab === 'login' ? (
-              /* LOGIN FORM */
               <form onSubmit={handleLogin} className="p-6 space-y-4">
                 <div className="text-center pb-2 border-b border-gray-100">
                   <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Identificação Funcional Única</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">Conecte-se com sua matrícula funcional cadastrada.</p>
                 </div>
-
                 {loginError && (
                   <div className="rounded-md bg-rose-50 border border-rose-200 p-3 flex space-x-2.5 text-xs text-rose-800 animate-pulse">
                     <AlertOctagon className="h-4 w-4 shrink-0 mt-0.5 text-rose-600" />
                     <span>{loginError}</span>
                   </div>
                 )}
-
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Matrícula Funcional *</label>
                   <div className="relative">
                     <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: 20150-1 ou 10020-3"
-                      value={matriculaInput}
-                      onChange={(e) => setMatriculaInput(e.target.value)}
-                      className="w-full rounded-md border border-gray-250 bg-slate-50 pl-9 py-2 text-xs focus:ring-1 focus:ring-blue-600 focus:border-blue-600 focus:outline-hidden"
-                    />
+                    <input type="text" required placeholder="Ex: 20150-1 ou 10020-3" value={matriculaInput} onChange={(e) => setMatriculaInput(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 pl-9 py-2 text-xs focus:ring-1 focus:ring-blue-600 focus:border-blue-600 focus:outline-hidden" />
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Senha de Acesso</label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input
-                      type="password"
-                      placeholder="Sua senha ou deixe em branco"
-                      value={senhaInput}
-                      onChange={(e) => setSenhaInput(e.target.value)}
-                      className="w-full rounded-md border border-gray-250 bg-slate-50 pl-9 py-2 text-xs focus:ring-1 focus:ring-blue-600 focus:border-blue-600 focus:outline-hidden"
-                    />
+                    <input type="password" placeholder="Sua senha ou deixe em branco" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 pl-9 py-2 text-xs focus:ring-1 focus:ring-blue-600 focus:border-blue-600 focus:outline-hidden" />
                   </div>
                 </div>
-
-                <button
-                  type="submit"
-                  className="w-full inline-flex items-center justify-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all pt-3.5 pb-3.5 cursor-pointer"
-                >
+                <button type="submit" className="w-full inline-flex items-center justify-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all pt-3.5 pb-3.5 cursor-pointer">
                   <LogIn className="h-4.5 w-4.5 text-yellow-350" />
                   <span>Autenticar no TCE Roraima</span>
                 </button>
               </form>
             ) : (
-              /* SERVER REGISTRATION FORM */
               <form onSubmit={handleRegister} className="p-6 space-y-4">
                 <div className="text-center pb-2 border-b border-gray-100">
                   <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Criar Cadastro de Servidor</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">Registre novos servidores para gerenciar suas portarias e férias.</p>
                 </div>
-
                 {loginError && (
                   <div className="rounded-md bg-rose-50 border border-rose-200 p-3 flex space-x-2.5 text-xs text-rose-800 animate-pulse">
                     <AlertOctagon className="h-4 w-4 shrink-0 mt-0.5 text-rose-600" />
                     <span>{loginError}</span>
                   </div>
                 )}
-
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Matrícula *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: 20155-2"
-                      value={regMatricula}
-                      onChange={(e) => setRegMatricula(e.target.value)}
-                      className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650"
-                    />
+                    <input type="text" required placeholder="Ex: 20155-2" value={regMatricula} onChange={(e) => setRegMatricula(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
                   </div>
-
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Setor *</label>
-                    <select
-                      value={regSector}
-                      onChange={(e) => setRegSector(e.target.value)}
-                      className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650"
-                    >
+                    <select value={regSector} onChange={(e) => setRegSector(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650">
                       <option value="SEAMP">SEAMP</option>
                       <option value="SECGE">SECGE</option>
                       <option value="DICOP">DICOP</option>
                     </select>
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Nome Completo *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: LUCYARA BRAZ DUARTE DE ALBUQUERQUE"
-                    value={regNome}
-                    onChange={(e) => setRegNome(e.target.value)}
-                    className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650"
-                  />
+                  <input type="text" required placeholder="Ex: LUCYARA BRAZ DUARTE DE ALBUQUERQUE" value={regNome} onChange={(e) => setRegNome(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Cargo *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: Analista Administrativo"
-                      value={regCargo}
-                      onChange={(e) => setRegCargo(e.target.value)}
-                      className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650"
-                    />
+                    <input type="text" required placeholder="Ex: Analista Administrativo" value={regCargo} onChange={(e) => setRegCargo(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
                   </div>
-
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Código do Cargo *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: TC/AAD"
-                      value={regCodigoCargo}
-                      onChange={(e) => setRegCodigoCargo(e.target.value)}
-                      className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650"
-                    />
+                    <input type="text" required placeholder="Ex: TC/AAD" value={regCodigoCargo} onChange={(e) => setRegCodigoCargo(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">E-mail *</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="exemplo@tcerr.tc.br"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650"
-                    />
+                    <input type="email" required placeholder="exemplo@tcerr.tc.br" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
                   </div>
-
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Perfil de Acesso *</label>
-                    <select
-                      value={regRole}
-                      onChange={(e) => setRegRole(e.target.value as any)}
-                      className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650"
-                    >
+                    <select value={regRole} onChange={(e) => setRegRole(e.target.value as any)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650">
                       <option value="Auditor">Auditor (Acesso regular)</option>
                       <option value="Administrador">Administrador (Coordenador)</option>
                       <option value="Gestor">Gestor (Acesso leitura)</option>
                     </select>
                   </div>
                 </div>
-
-                <button
-                  type="submit"
-                  className="w-full inline-flex items-center justify-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all pt-3.5 pb-3.5 cursor-pointer"
-                >
+                <button type="submit" className="w-full inline-flex items-center justify-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all pt-3.5 pb-3.5 cursor-pointer">
                   <UserPlus className="h-4.5 w-4.5 text-yellow-350" />
                   <span>Cadastrar e Autenticar</span>
                 </button>
               </form>
             )}
           </div>
-          
           <div className="text-center">
             <span className="text-[10px] text-slate-500 block">Copyright &copy; Tribunal de Contas de Roraima. Ouvidoria & Controladoria.</span>
           </div>
         </div>
-
       </div>
     );
   }
 
-  // Full-featured Authenticated UI Shell 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-50/50 font-sans">
-      
-      {/* Sidebar navigation */}
-      <Sidebar
-        currentUser={currentUser}
-        activeView={activeView}
-        setActiveView={(v) => {
-          setActiveView(v);
-          setIsFormOpen(false);
-          setEditingPortaria(null);
-        }}
-      />
-
-      {/* Main Container Area */}
+      <Sidebar currentUser={currentUser} activeView={activeView} setActiveView={(v) => { setActiveView(v); setIsFormOpen(false); setEditingPortaria(null); }} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        
-        {/* Header toolbar */}
-        <Header
-          currentUser={currentUser}
-          onLogout={handleLogout}
-          notifications={notifications}
-          markNotificationAsRead={handleMarkNotification}
-          markAllNotificationsAsRead={handleMarkAllNotifications}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-        />
-
-        {/* Scrollable View Content area */}
+        <Header currentUser={currentUser} onLogout={handleLogout} notifications={notifications} markNotificationAsRead={handleMarkNotification} markAllNotificationsAsRead={handleMarkAllNotifications} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         <main className="flex-1 overflow-y-auto px-6 py-6 md:px-8">
           {loading ? (
             <div className="h-full flex items-center justify-center text-xs text-gray-500">
@@ -853,7 +621,6 @@ export default function App() {
           )}
         </main>
       </div>
-
     </div>
   );
 }

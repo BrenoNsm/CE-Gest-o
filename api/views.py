@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,7 +10,6 @@ from .serializers import (
 )
 import uuid
 
-# Create your views here.
 # Gera um ID único estilo frontend (ex: 'log-1718293847')
 def generate_id(prefix='id'):
     return f"{prefix}-{int(timezone.now().timestamp() * 1000)}"
@@ -33,15 +31,16 @@ class FeriasViewSet(viewsets.GenericViewSet):
                 ferias = serializer.save()
 
                 # Criar Log de Auditoria
-                user = User.objects.get(id=ferias.userId)
+                # CORREÇÃO: Usar ferias.user_id em vez de ferias.userId
+                user = User.objects.get(id=ferias.user_id)
                 AuditLog.objects.create(
                     id=generate_id('log'),
                     portaria_id=f"ferias-{ferias.id}",
-                    numero_portaria=ferias.numeroPortariaFerias,
+                    numero_portaria=ferias.numero_portaria_ferias,
                     usuario=f"{user.nome} (Mat: {user.matricula})",
                     data_hora=timezone.now().isoformat(),
                     acao="Registro de Férias",
-                    detalhes=f"Registrou período de férias de {ferias.dataInicio} a {ferias.dataFim} ({ferias.dias} dias) - Portaria nº {ferias.numeroPortariaFerias}.",
+                    detalhes=f"Registrou período de férias de {ferias.data_inicio} a {ferias.data_fim} ({ferias.dias} dias) - Portaria nº {ferias.numero_portaria_ferias}.",
                     sector=user.sector
                 )
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -51,17 +50,18 @@ class FeriasViewSet(viewsets.GenericViewSet):
     def destroy(self, request, *args, **kwargs):
         try:
             ferias = Ferias.objects.get(id=kwargs['pk'])
-            user = User.objects.get(id=ferias.userId)
+            # CORREÇÃO: Usar ferias.user_id em vez de ferias.userId
+            user = User.objects.get(id=ferias.user_id)
             
             # Criar Log de Auditoria antes de deletar
             AuditLog.objects.create(
                 id=generate_id('log'),
                 portaria_id=f"ferias-del-{ferias.id}",
-                numero_portaria=ferias.numeroPortariaFerias,
+                numero_portaria=ferias.numero_portaria_ferias,
                 usuario=f"{user.nome} (Mat: {user.matricula})",
                 data_hora=timezone.now().isoformat(),
                 acao="Cancelamento de Férias",
-                detalhes=f"Cancelou o registro de férias de {ferias.dataInicio} a {ferias.dataFim}.",
+                detalhes=f"Cancelou o registro de férias de {ferias.data_inicio} a {ferias.data_fim}.",
                 sector=user.sector
             )
             

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
 
 # -----------------------------------------------------------------------------
@@ -7,6 +8,8 @@ from .models import User, Ferias, Portaria, Fase, Documento, Comentario, AuditLo
 
 class FeriasSerializer(serializers.ModelSerializer):
     id = serializers.CharField()
+    # Mapeia userId do frontend para user_id do Django
+    userId = serializers.CharField(source='user_id', write_only=True)
     matriculaServidor = serializers.CharField(source='matricula_servidor')
     nomeServidor = serializers.CharField(source='nome_servidor')
     cargoServidor = serializers.CharField(source='cargo_servidor')
@@ -20,7 +23,7 @@ class FeriasSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ferias
         fields = [
-            'id', 'matriculaServidor', 'nomeServidor', 'cargoServidor', 
+            'id', 'userId', 'matriculaServidor', 'nomeServidor', 'cargoServidor', 
             'codigoCargoServidor', 'numeroPortariaFerias', 'dataInicio', 
             'dataFim', 'dias', 'periodoAquisitivo', 'parcela', 'dataCadastro'
         ]
@@ -66,7 +69,7 @@ class ComentarioSerializer(serializers.ModelSerializer):
         fields = ['id', 'autor', 'cargo', 'texto', 'dataHora']
 
 # -----------------------------------------------------------------------------
-# 2. Serializer Complexo: Portaria (Espelhando o Frontend)
+# 2. Serializer Complexo: Portaria
 # -----------------------------------------------------------------------------
 
 class PortariaSerializer(serializers.ModelSerializer):
@@ -78,7 +81,6 @@ class PortariaSerializer(serializers.ModelSerializer):
     concluidoNoPrazo = serializers.BooleanField(source='concluido_no_prazo', required=False)
     tempoAtrasoDias = serializers.IntegerField(source='tempo_atraso_dias', required=False)
 
-    # Campos de LEITURA (montam o objeto aninhado que o frontend espera)
     auditorDesignado = serializers.SerializerMethodField()
     supervisor = serializers.SerializerMethodField()
     cronograma = FaseSerializer(many=True, read_only=True)
@@ -108,7 +110,6 @@ class PortariaSerializer(serializers.ModelSerializer):
             "sector": obj.supervisor_sector
         }
 
-    # Intercepta os dados aninhados enviados pelo frontend antes da validação padrão
     def to_internal_value(self, data):
         self._auditor = data.pop('auditorDesignado', None)
         self._supervisor = data.pop('supervisor', None)
@@ -118,7 +119,6 @@ class PortariaSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def create(self, validated_data):
-        # Mapeia os dados aninhados para os campos planos do banco de dados
         if self._auditor:
             validated_data['auditor_nome'] = self._auditor.get('nome', '')
             validated_data['auditor_cargo'] = self._auditor.get('cargo', '')
@@ -131,14 +131,36 @@ class PortariaSerializer(serializers.ModelSerializer):
         
         portaria = Portaria.objects.create(**validated_data)
         
-        # Cria os registros filhos
+        # Cria filhos mapeando camelCase -> snake_case explicitamente
+        ts = int(timezone.now().timestamp() * 1000)
         for f in self._cronograma:
-            Fase.objects.create(portaria=portaria, **f)
+            Fase.objects.create(
+                portaria=portaria,
+                id=f.get('id', f'phase-{ts}'),
+                nome=f.get('nome'),
+                data_inicio=f.get('dataInicio'),
+                data_fim=f.get('dataFim'),
+                duracao_dias_uteis=f.get('duracaoDiasUteis'),
+                status=f.get('status', 'Pendente')
+            )
         for d in self._documentos:
-            Documento.objects.create(portaria=portaria, **d)
+            Documento.objects.create(
+                portaria=portaria,
+                id=d.get('id', f'doc-{ts}'),
+                nome=d.get('nome'),
+                data_upload=d.get('dataUpload'),
+                tamanho=d.get('tamanho'),
+                uploaded_by=d.get('uploadedBy')
+            )
         for c in self._comentarios:
-            Comentario.objects.create(portaria=portaria, **c)
-            
+            Comentario.objects.create(
+                portaria=portaria,
+                id=c.get('id', f'com-{ts}'),
+                autor=c.get('autor'),
+                cargo=c.get('cargo'),
+                texto=c.get('texto'),
+                data_hora=c.get('dataHora')
+            )
         return portaria
 
     def update(self, instance, validated_data):
@@ -156,22 +178,51 @@ class PortariaSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         
-        # Upsert (Atualiza ou Cria) para cronograma
+        # Upsert Cronograma
         if self._cronograma is not None:
             incoming_ids = [f.get('id') for f in self._cronograma if f.get('id')]
             for f in self._cronograma:
-                Fase.objects.update_or_create(id=f.get('id'), portaria=instance, defaults=f)
+                fase_data = {
+                    'nome': f.get('nome'),
+                    'data_inicio': f.get('dataInicio'),
+                    'data_fim': f.get('dataFim'),
+                    'duracao_dias_uteis': f.get('duracaoDiasUteis'),
+                    'status': f.get('status', 'Pendente')
+                }
+                if f.get('id'):
+                    Fase.objects.update_or_create(id=f['id'], portaria=instance, defaults=fase_data)
+                else:
+                    Fase.objects.create(portaria=instance, **fase_data)
             if incoming_ids:
                 instance.cronograma.exclude(id__in=incoming_ids).delete()
                 
-        # Get or Create para documentos e comentários (evita duplicatas)
+        # Upsert Documentos
         if self._documentos is not None:
             for d in self._documentos:
-                Documento.objects.get_or_create(id=d.get('id'), portaria=instance, defaults=d)
-                
+                doc_data = {
+                    'nome': d.get('nome'),
+                    'data_upload': d.get('dataUpload'),
+                    'tamanho': d.get('tamanho'),
+                    'uploaded_by': d.get('uploadedBy')
+                }
+                if d.get('id'):
+                    Documento.objects.update_or_create(id=d['id'], portaria=instance, defaults=doc_data)
+                else:
+                    Documento.objects.create(portaria=instance, **doc_data)
+                    
+        # Upsert Comentários
         if self._comentarios is not None:
             for c in self._comentarios:
-                Comentario.objects.get_or_create(id=c.get('id'), portaria=instance, defaults=c)
+                com_data = {
+                    'autor': c.get('autor'),
+                    'cargo': c.get('cargo'),
+                    'texto': c.get('texto'),
+                    'data_hora': c.get('dataHora')
+                }
+                if c.get('id'):
+                    Comentario.objects.update_or_create(id=c['id'], portaria=instance, defaults=com_data)
+                else:
+                    Comentario.objects.create(portaria=instance, **com_data)
                 
         return instance
 
