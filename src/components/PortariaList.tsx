@@ -35,7 +35,7 @@ export default function PortariaList({
   // Drawer Detailed View
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedPortaria, setSelectedPortaria] = useState<Portaria | null>(null);
-  
+
   // New Attach/Comment Form Inputs
   const [newComment, setNewComment] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -87,7 +87,6 @@ export default function PortariaList({
     const completed = p.cronograma.filter(f => f.status === 'Concluída').length;
     const total = p.cronograma.length;
     const percent = Math.round((completed / total) * 100);
-    
     // Find active phase
     const active = p.cronograma.find(f => f.status === 'Em andamento') || 
                    p.cronograma.find(f => f.status === 'Pendente') || 
@@ -106,15 +105,9 @@ export default function PortariaList({
     setSelectedPortaria(null);
   };
 
-  // Stage execution fast status updater
+  // Stage execution fast status updater - SEM RESTRIÇÃO DE ROLE
   const handleUpdateFaseStatus = (faseId: string, newStatus: 'Pendente' | 'Em andamento' | 'Concluída') => {
     if (!selectedPortaria) return;
-
-    // Authorization checks: Auditors can update, Admin can update, Gestors cannot.
-    if (currentUser.role === 'Gestor') {
-      alert("Seu perfil de Gestor possui acesso somente-leitura. Alterações de fases não são permitidas.");
-      return;
-    }
 
     const updatedCronograma = selectedPortaria.cronograma.map(f => {
       if (f.id === faseId) {
@@ -135,20 +128,9 @@ export default function PortariaList({
     setSelectedPortaria(updatedPortaria); // Update local modal draft
   };
 
-  // Rapid general status dropdown
+  // Rapid general status dropdown - SEM RESTRIÇÃO DE ROLE
   const handleUpdateGeneralStatus = (newStatus: 'Ativa' | 'Concluída' | 'Suspensa' | 'Cancelada') => {
     if (!selectedPortaria) return;
-
-    if (currentUser.role !== 'Administrador' && currentUser.role !== 'Gestor') {
-      // Allow Auditor to change if assigned to him/her
-      if (selectedPortaria.auditorDesignado.matricula !== currentUser.matricula) {
-        alert("Apenas o Auditor designado para o processo ou um Administrador do Setor podem alterar o status geral.");
-        return;
-      }
-    } else if (currentUser.role === 'Gestor') {
-      alert("Acesso exclusivo para Administradores ou Auditores designados.");
-      return;
-    }
 
     const details = `Alterou status geral do processo de [${selectedPortaria.status}] para [${newStatus}]`;
     const updatedPortaria: Portaria = {
@@ -164,7 +146,6 @@ export default function PortariaList({
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || !selectedPortaria) return;
-
     const commentObj: Comentario = {
       id: 'com-' + Date.now(),
       autor: currentUser.nome,
@@ -197,7 +178,6 @@ export default function PortariaList({
     e.preventDefault();
     setIsDragging(false);
     if (!selectedPortaria) return;
-
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
@@ -222,7 +202,6 @@ export default function PortariaList({
 
   const handleManualFileSimulated = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedPortaria || !e.target.files || e.target.files.length === 0) return;
-
     const file = e.target.files[0];
     const newDoc: Documento = {
       id: 'doc-' + Date.now(),
@@ -253,7 +232,6 @@ export default function PortariaList({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      
       {/* List Header and Quick Creation */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -261,15 +239,14 @@ export default function PortariaList({
           <p className="text-xs text-gray-500 mt-1">Busque e gerencie portarias, adicione observações, anexe relatórios técnicas e envie pareceres.</p>
         </div>
 
-        {currentUser.role === 'Administrador' && (
-          <button
-            onClick={onAddNewClick}
-            className="inline-flex items-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors self-start sm:self-auto"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Criar Nova Portaria</span>
-          </button>
-        )}
+        {/* Botão Criar Nova Portaria - SEM RESTRIÇÃO DE ROLE */}
+        <button
+          onClick={onAddNewClick}
+          className="inline-flex items-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors self-start sm:self-auto"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Criar Nova Portaria</span>
+        </button>
       </div>
 
       {/* Advanced Filters Panel */}
@@ -417,7 +394,7 @@ export default function PortariaList({
                     <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${percent}%` }} />
                   </div>
 
-                  {/* Operational Controls */}
+                  {/* Operational Controls - SEM RESTRIÇÃO DE ROLE */}
                   <div className="flex items-center justify-between pt-1 text-[11px]">
                     <span className="text-[10px] text-gray-400 font-mono flex items-center space-x-1">
                       <Paperclip className="h-3.5 w-3.5 mr-0.5" />
@@ -428,24 +405,23 @@ export default function PortariaList({
                     </span>
 
                     <div className="flex items-center space-x-2">
-                      {currentUser.role === 'Administrador' && (
-                        <>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onEdit(p); }}
-                            className="text-gray-500 hover:text-blue-700 p-1 rounded-sm hover:bg-slate-50 transition-colors"
-                            title="Editar Dados Gerais"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
-                            className="text-gray-500 hover:text-red-700 p-1 rounded-sm hover:bg-red-50 transition-colors"
-                            title="Excluir Portaria"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </>
-                      )}
+                      {/* Botões Editar/Excluir - SEM RESTRIÇÃO DE ROLE */}
+                      <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onEdit(p); }}
+                          className="text-gray-500 hover:text-blue-700 p-1 rounded-sm hover:bg-slate-50 transition-colors"
+                          title="Editar Dados Gerais"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
+                          className="text-gray-500 hover:text-red-700 p-1 rounded-sm hover:bg-red-50 transition-colors"
+                          title="Excluir Portaria"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
                       
                       <button
                         onClick={() => handleOpenDetail(p)}
@@ -505,24 +481,23 @@ export default function PortariaList({
                         </span>
                       </td>
                       <td className="p-3 text-right space-x-1">
-                        {currentUser.role === 'Administrador' && (
-                          <>
-                            <button
-                              onClick={() => onEdit(p)}
-                              className="text-gray-400 hover:text-blue-600 inline-block p-1"
-                              title="Editar"
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              onClick={() => onDelete(p.id)}
-                              className="text-gray-400 hover:text-red-600 inline-block p-1"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </>
-                        )}
+                        {/* Botões Editar/Excluir - SEM RESTRIÇÃO DE ROLE */}
+                        <>
+                          <button
+                            onClick={() => onEdit(p)}
+                            className="text-gray-400 hover:text-blue-600 inline-block p-1"
+                            title="Editar"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onDelete(p.id)}
+                            className="text-gray-400 hover:text-red-600 inline-block p-1"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </>
                         <button
                           onClick={() => handleOpenDetail(p)}
                           className="font-bold text-blue-600 hover:text-blue-800 inline-flex items-center space-x-0.5 pl-2"
@@ -571,7 +546,7 @@ export default function PortariaList({
               <div className="rounded-lg bg-slate-50 border border-gray-150 p-4 space-y-3.5 text-xs text-gray-700">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-800 border-b border-gray-200 pb-1">Fundamento Legal</p>
                 <p className="text-gray-800 leading-relaxed italic">{selectedPortaria.fundamentacao}</p>
-                
+              
                 <div className="grid grid-cols-2 gap-4 pt-1.5 text-[11px] text-gray-600">
                   <div>
                     <span className="text-gray-400 block uppercase font-bold text-[9px]">Auditor Responsável:</span>
@@ -639,12 +614,11 @@ export default function PortariaList({
                           </p>
                         </div>
 
-                        {/* Dropdown status update for Auditor/Admin */}
+                        {/* Dropdown status update - SEM RESTRIÇÃO DE ROLE */}
                         <div className="flex items-center space-x-2">
                           <span className="text-[10px] text-gray-400">Trabalho:</span>
                           <select
                             value={fase.status}
-                            disabled={currentUser.role === 'Gestor'}
                             onChange={(e) => handleUpdateFaseStatus(fase.id, e.target.value as any)}
                             className="rounded-md border border-gray-200 bg-white p-1 text-[11px] font-semibold text-gray-700"
                           >
@@ -682,7 +656,7 @@ export default function PortariaList({
                   className={`border-2 border-dashed rounded-lg p-5 text-center transition-all ${
                     isDragging
                       ? 'border-blue-500 bg-blue-50/50'
-                      : 'border-slate-200 bg-linear-to-b from-slate-50/20 to-slate-50 hover:bg-slate-50'
+                      : 'border-slate-200 bg-gradient-to-b from-slate-50/20 to-slate-50 hover:bg-slate-50'
                   }`}
                 >
                   <UploadCloud className="h-8 w-8 text-slate-400 mx-auto mb-2 animate-bounce" />
@@ -720,7 +694,7 @@ export default function PortariaList({
               {/* Remarks/Comment Stream */}
               <div className="border-t border-gray-100 pt-5 space-y-3">
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Pareceres, Despachos & Comentários</p>
-                
+              
                 {/* Form to comment */}
                 <form onSubmit={handleAddComment} className="flex gap-2">
                   <input

@@ -11,27 +11,17 @@ import LogsView from './components/LogsView';
 import CalendarView from './components/CalendarView';
 import VacationsView from './components/VacationsView';
 // Icons
-import { Award, ShieldCheck, LogIn, Lock, User as UserIcon, Building2, HelpCircle, AlertOctagon, UserPlus } from 'lucide-react';
+import { Award, ShieldCheck, LogIn, Lock, User as UserIcon, Building2, HelpCircle, AlertOctagon } from 'lucide-react';
 
 export default function App() {
   // Session Authentication State
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('sgp_current_user');
+    const saved = localStorage.getItem('cronos_current_user');
     return saved ? JSON.parse(saved) : null;
   });
   const [matriculaInput, setMatriculaInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [loginTab, setLoginTab] = useState<'login' | 'register'>('login');
-  
-  // Registration states
-  const [regMatricula, setRegMatricula] = useState('');
-  const [regNome, setRegNome] = useState('');
-  const [regCargo, setRegCargo] = useState('');
-  const [regCodigoCargo, setRegCodigoCargo] = useState('TC/AAD');
-  const [regSector, setRegSector] = useState('SEAMP');
-  const [regEmail, setRegEmail] = useState('');
-  const [regRole, setRegRole] = useState<'Administrador' | 'Auditor' | 'Gestor'>('Auditor');
 
   // Primary Data States (Loaded from Backend DB)
   const [users, setUsers] = useState<User[]>([]);
@@ -55,13 +45,13 @@ export default function App() {
   // Sincronizador da sessão local
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('sgp_current_user', JSON.stringify(currentUser));
+      localStorage.setItem('cronos_current_user', JSON.stringify(currentUser));
     } else {
-      localStorage.removeItem('sgp_current_user');
+      localStorage.removeItem('cronos_current_user');
     }
   }, [currentUser]);
 
-  // Load database tables from localhost server API (COM BARRA FINAL)
+  // Load database tables from localhost server API
   const loadData = async () => {
     try {
       setLoading(true);
@@ -79,7 +69,6 @@ export default function App() {
       setNotifications(rNotifs);
     } catch (err) {
       console.error("Erro ao carregar dados relacionais do servidor local:", err);
-      setLoginError("Erro de conexão com o servidor Django. Verifique se ele está rodando na porta 8000.");
     } finally {
       setLoading(false);
     }
@@ -90,69 +79,41 @@ export default function App() {
   }, []);
 
   // Login handler
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
+    
     if (!matriculaInput.trim()) {
       setLoginError('Informe a matrícula funcional.');
       return;
     }
 
-    const foundUser = users.find(u => u.matricula.trim() === matriculaInput.trim());
+    try {
+      // Buscar usuário da API
+      const res = await fetch(`/api/users/?matricula=${matriculaInput.trim()}`);
+      if (!res.ok) {
+        throw new Error('Matrícula funcional não localizada no cadastro.');
+      }
+      
+      const foundUsers = await res.json();
+      if (foundUsers.length === 0) {
+        setLoginError('Matrícula funcional não localizada no cadastro.');
+        return;
+      }
 
-    if (foundUser) {
+      const foundUser = foundUsers[0];
+      
+      // Verificar senha (em produção, isso seria feito via autenticação JWT/session)
+      if (senhaInput && senhaInput !== 'admin123') { // Senha padrão para teste
+        setLoginError('Senha incorreta.');
+        return;
+      }
+
       setCurrentUser(foundUser);
       setMatriculaInput('');
       setSenhaInput('');
-    } else {
-      setLoginError('Matrícula funcional não localizada no cadastro do TCERR.');
-    }
-  };
-
-  // Register New Server handler (COM BARRA FINAL)
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    if (!regMatricula.trim() || !regNome.trim() || !regCargo.trim() || !regEmail.trim()) {
-      setLoginError('Preencha todos os campos obrigatórios.');
-      return;
-    }
-
-    const newUser = {
-      id: 'usr-' + Date.now(),
-      matricula: regMatricula.trim(),
-      nome: regNome.trim(),
-      cargo: regCargo.trim(),
-      codigoCargo: regCodigoCargo,
-      sector: regSector,
-      email: regEmail.trim(),
-      role: regRole,
-      avatarUrl: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 1000000)}?w=150`
-    };
-
-    try {
-      const res = await fetch('/api/users/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Erro ao registrar servidor.');
-      }
-      const createdUser = await res.json();
-      
-      setUsers(prev => [...prev, createdUser]);
-      setCurrentUser(createdUser);
-      
-      setRegMatricula('');
-      setRegNome('');
-      setRegCargo('');
-      setRegEmail('');
-      setLoginTab('login');
-      alert(`Servidor ${createdUser.nome} registrado e autenticado com sucesso!`);
     } catch (err: any) {
-      setLoginError(err.message);
+      setLoginError(err.message || 'Erro ao autenticar.');
     }
   };
 
@@ -162,7 +123,7 @@ export default function App() {
     setEditingPortaria(null);
   };
 
-  // Add notification routine to backend API (COM BARRA FINAL)
+  // Add notification routine to backend API
   const handleDispatchNotification = async (title: string, message: string, type: any, portariaId: string, targetSector: string) => {
     const newNotif = {
       id: 'notif-' + Date.now(),
@@ -189,7 +150,7 @@ export default function App() {
     }
   };
 
-  // Core Mutation: Save or Update Portaria via API (COM BARRA FINAL)
+  // Core Mutation: Save or Update Portaria via API
   const handleSavePortaria = async (savedPortaria: Portaria) => {
     if (!currentUser) return;
     const exists = portarias.some(p => p.id === savedPortaria.id);
@@ -261,7 +222,7 @@ export default function App() {
     }
   };
 
-  // Core Mutation: Delete Portaria via API (COM BARRA FINAL)
+  // Core Mutation: Delete Portaria via API
   const handleDeletePortaria = async (id: string) => {
     if (!currentUser) return;
     const target = portarias.find(p => p.id === id);
@@ -322,7 +283,7 @@ export default function App() {
     }
   };
 
-  // Inline Detailed update (COM BARRA FINAL)
+  // Inline Detailed update
   const handleUpdatePortariaInline = async (updatedPortaria: Portaria, changeDetails: string) => {
     if (!currentUser) return;
     try {
@@ -364,7 +325,7 @@ export default function App() {
     }
   };
 
-  // Read notifications on backend API (COM BARRA FINAL)
+  // Read notifications on backend API
   const handleMarkNotification = async (id: string) => {
     try {
       const res = await fetch(`/api/notifications/${id}/`, {
@@ -395,7 +356,7 @@ export default function App() {
     }
   };
 
-  // Vacations mutation handlers (COM BARRA FINAL)
+  // Vacations mutation handlers
   const handleAddVacation = async (vacationData: any) => {
     try {
       const res = await fetch('/api/vacations/', {
@@ -487,6 +448,7 @@ export default function App() {
     }
   };
 
+  // Login Screen render
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-6 font-sans">
@@ -495,126 +457,110 @@ export default function App() {
             <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-800 shadow-xl border border-blue-400">
               <Award className="h-9 w-9 text-yellow-400" />
             </div>
-            <h1 className="text-xl font-extrabold tracking-tight text-white uppercase sm:text-2xl">TCE - Roraima</h1>
-            <p className="text-xs text-blue-300 uppercase tracking-widest font-semibold font-sans">Sistema de Portarias de Fiscalização (SGP)</p>
+            <h1 className="text-xl font-extrabold tracking-tight text-white uppercase sm:text-2xl">
+              CRONOS
+            </h1>
+            <p className="text-xs text-blue-300 uppercase tracking-widest font-semibold font-sans">
+              Sistema de Gestão de Portarias
+            </p>
           </div>
 
           <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-700/30">
-            <div className="flex bg-blue-950 p-1">
-              <button onClick={() => { setLoginTab('login'); setLoginError(''); }} className={`flex-1 text-center py-2.5 text-xs font-bold uppercase tracking-wider rounded-t-lg transition-colors ${loginTab === 'login' ? 'bg-white text-blue-950' : 'text-blue-200 hover:text-white'}`}>Autenticação</button>
-              <button onClick={() => { setLoginTab('register'); setLoginError(''); }} className={`flex-1 text-center py-2.5 text-xs font-bold uppercase tracking-wider rounded-t-lg transition-colors ${loginTab === 'register' ? 'bg-white text-blue-950' : 'text-blue-200 hover:text-white'}`}>Registrar Servidor</button>
-            </div>
+            <form onSubmit={handleLogin} className="p-6 space-y-4">
+              <div className="text-center pb-2 border-b border-gray-100">
+                <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Autenticação de Servidor</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Acesse com sua matrícula funcional cadastrada.</p>
+              </div>
 
-            {loginTab === 'login' ? (
-              <form onSubmit={handleLogin} className="p-6 space-y-4">
-                <div className="text-center pb-2 border-b border-gray-100">
-                  <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Identificação Funcional Única</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Conecte-se com sua matrícula funcional cadastrada.</p>
+              {loginError && (
+                <div className="rounded-md bg-rose-50 border border-rose-200 p-3 flex space-x-2.5 text-xs text-rose-800 animate-pulse">
+                  <AlertOctagon className="h-4 w-4 shrink-0 mt-0.5 text-rose-600" />
+                  <span>{loginError}</span>
                 </div>
-                {loginError && (
-                  <div className="rounded-md bg-rose-50 border border-rose-200 p-3 flex space-x-2.5 text-xs text-rose-800 animate-pulse">
-                    <AlertOctagon className="h-4 w-4 shrink-0 mt-0.5 text-rose-600" />
-                    <span>{loginError}</span>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Matrícula Funcional *</label>
-                  <div className="relative">
-                    <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input type="text" required placeholder="Ex: 20150-1 ou 10020-3" value={matriculaInput} onChange={(e) => setMatriculaInput(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 pl-9 py-2 text-xs focus:ring-1 focus:ring-blue-600 focus:border-blue-600 focus:outline-hidden" />
-                  </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Matrícula Funcional *</label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: 20150-1"
+                    value={matriculaInput}
+                    onChange={(e) => setMatriculaInput(e.target.value)}
+                    className="w-full rounded-md border border-gray-250 bg-slate-50 pl-9 py-2 text-xs focus:ring-1 focus:ring-blue-600 focus:border-blue-600 focus:outline-hidden"
+                  />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Senha de Acesso</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input type="password" placeholder="Sua senha ou deixe em branco" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 pl-9 py-2 text-xs focus:ring-1 focus:ring-blue-600 focus:border-blue-600 focus:outline-hidden" />
-                  </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Senha de Acesso</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <input
+                    type="password"
+                    placeholder="Digite sua senha"
+                    value={senhaInput}
+                    onChange={(e) => setSenhaInput(e.target.value)}
+                    className="w-full rounded-md border border-gray-250 bg-slate-50 pl-9 py-2 text-xs focus:ring-1 focus:ring-blue-600 focus:border-blue-600 focus:outline-hidden"
+                  />
                 </div>
-                <button type="submit" className="w-full inline-flex items-center justify-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all pt-3.5 pb-3.5 cursor-pointer">
-                  <LogIn className="h-4.5 w-4.5 text-yellow-350" />
-                  <span>Autenticar no TCE Roraima</span>
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleRegister} className="p-6 space-y-4">
-                <div className="text-center pb-2 border-b border-gray-100">
-                  <p className="text-xs font-bold uppercase text-slate-500 tracking-wider">Criar Cadastro de Servidor</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Registre novos servidores para gerenciar suas portarias e férias.</p>
-                </div>
-                {loginError && (
-                  <div className="rounded-md bg-rose-50 border border-rose-200 p-3 flex space-x-2.5 text-xs text-rose-800 animate-pulse">
-                    <AlertOctagon className="h-4 w-4 shrink-0 mt-0.5 text-rose-600" />
-                    <span>{loginError}</span>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Matrícula *</label>
-                    <input type="text" required placeholder="Ex: 20155-2" value={regMatricula} onChange={(e) => setRegMatricula(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Setor *</label>
-                    <select value={regSector} onChange={(e) => setRegSector(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650">
-                      <option value="SEAMP">SEAMP</option>
-                      <option value="SECGE">SECGE</option>
-                      <option value="DICOP">DICOP</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Nome Completo *</label>
-                  <input type="text" required placeholder="Ex: LUCYARA BRAZ DUARTE DE ALBUQUERQUE" value={regNome} onChange={(e) => setRegNome(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Cargo *</label>
-                    <input type="text" required placeholder="Ex: Analista Administrativo" value={regCargo} onChange={(e) => setRegCargo(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Código do Cargo *</label>
-                    <input type="text" required placeholder="Ex: TC/AAD" value={regCodigoCargo} onChange={(e) => setRegCodigoCargo(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">E-mail *</label>
-                    <input type="email" required placeholder="exemplo@tcerr.tc.br" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Perfil de Acesso *</label>
-                    <select value={regRole} onChange={(e) => setRegRole(e.target.value as any)} className="w-full rounded-md border border-gray-250 bg-slate-50 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-650">
-                      <option value="Auditor">Auditor (Acesso regular)</option>
-                      <option value="Administrador">Administrador (Coordenador)</option>
-                      <option value="Gestor">Gestor (Acesso leitura)</option>
-                    </select>
-                  </div>
-                </div>
-                <button type="submit" className="w-full inline-flex items-center justify-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all pt-3.5 pb-3.5 cursor-pointer">
-                  <UserPlus className="h-4.5 w-4.5 text-yellow-350" />
-                  <span>Cadastrar e Autenticar</span>
-                </button>
-              </form>
-            )}
+                <p className="text-[10px] text-gray-400 mt-1">Contate o administrador se não tiver acesso.</p>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full inline-flex items-center justify-center space-x-2 rounded-md bg-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all pt-3.5 pb-3.5 cursor-pointer"
+              >
+                <LogIn className="h-4.5 w-4.5 text-yellow-350" />
+                <span>Autenticar no Cronos</span>
+              </button>
+            </form>
           </div>
+          
           <div className="text-center">
-            <span className="text-[10px] text-slate-500 block">Copyright &copy; Tribunal de Contas de Roraima. Ouvidoria & Controladoria.</span>
+            <span className="text-[10px] text-slate-500 block">Copyright © Tribunal de Contas de Roraima.</span>
           </div>
         </div>
       </div>
     );
   }
 
+  // Full-featured Authenticated UI Shell
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-50/50 font-sans">
-      <Sidebar currentUser={currentUser} activeView={activeView} setActiveView={(v) => { setActiveView(v); setIsFormOpen(false); setEditingPortaria(null); }} />
+      {/* Sidebar navigation */}
+      <Sidebar
+        currentUser={currentUser}
+        activeView={activeView}
+        setActiveView={(v) => {
+          setActiveView(v);
+          setIsFormOpen(false);
+          setEditingPortaria(null);
+        }}
+      />
+
+      {/* Main Container Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header currentUser={currentUser} onLogout={handleLogout} notifications={notifications} markNotificationAsRead={handleMarkNotification} markAllNotificationsAsRead={handleMarkAllNotifications} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        
+        {/* Header toolbar */}
+        <Header
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          notifications={notifications}
+          markNotificationAsRead={handleMarkNotification}
+          markAllNotificationsAsRead={handleMarkAllNotifications}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+        />
+
+        {/* Scrollable View Content area */}
         <main className="flex-1 overflow-y-auto px-6 py-6 md:px-8">
           {loading ? (
             <div className="h-full flex items-center justify-center text-xs text-gray-500">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2" />
-              Carregando dados estruturados do TCERR...
+              Carregando dados estruturados do Cronos...
             </div>
           ) : (
             renderMainContent()

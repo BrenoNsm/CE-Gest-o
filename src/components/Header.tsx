@@ -22,8 +22,8 @@ export default function Header({
   setSearchTerm
 }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-
+  const [selectedNotification, setSelectedNotification] = useState<SystemNotification | null>(null);
+  
   const unreadCount = notifications.filter(n => !n.lida && n.sector === currentUser.sector).length;
   const sectorNotifications = notifications.filter(n => n.sector === currentUser.sector);
 
@@ -41,6 +41,13 @@ export default function Header({
 
   const roleMeta = getRoleLabel(currentUser.role);
 
+  const handleNotificationClick = (notif: SystemNotification) => {
+    setSelectedNotification(notif);
+    if (!notif.lida) {
+      markNotificationAsRead(notif.id);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-gray-100 bg-white px-6 shadow-xs">
       {/* Search Bar */}
@@ -57,14 +64,6 @@ export default function Header({
 
       {/* Right Actions */}
       <div className="flex items-center space-x-4">
-        {/* Real-time Sector Information Display */}
-        <span className="hidden lg:flex items-center space-x-1.5 text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-md">
-          <Globe className="h-3.5 w-3.5 text-blue-600" />
-          <span>UF: Roraima</span>
-          <span className="text-gray-300">|</span>
-          <span className="text-blue-700">{currentUser.sector}</span>
-        </span>
-
         {/* Notifications Icon and Dropdown */}
         <div className="relative">
           <button
@@ -102,7 +101,8 @@ export default function Header({
                   sectorNotifications.map((notif) => (
                     <div
                       key={notif.id}
-                      className={`flex flex-col border-b border-gray-50 p-3.5 text-xs transition-colors ${
+                      onClick={() => handleNotificationClick(notif)}
+                      className={`flex flex-col border-b border-gray-50 p-3.5 text-xs transition-colors cursor-pointer hover:bg-gray-50 ${
                         notif.lida ? 'bg-white' : 'bg-blue-50/40'
                       }`}
                     >
@@ -112,7 +112,10 @@ export default function Header({
                         </span>
                         {!notif.lida && (
                           <button
-                            onClick={() => markNotificationAsRead(notif.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markNotificationAsRead(notif.id);
+                            }}
                             className="text-blue-600 hover:text-blue-800"
                             title="Marcar como lida"
                           >
@@ -132,52 +135,69 @@ export default function Header({
           )}
         </div>
 
-        {/* Profile Avatar and Menu */}
+        {/* Profile Menu - Sem foto */}
         <div className="relative">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center space-x-2 text-left focus:outline-hidden"
-          >
-            <img
-              src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
-              alt={currentUser.nome}
-              className="h-8.5 w-8.5 rounded-full object-cover border border-blue-100 bg-gray-100"
-            />
+          <div className="flex items-center space-x-2 text-left">
+            <div className="h-8.5 w-8.5 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
+              {currentUser.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+            </div>
             <div className="hidden md:block">
               <p className="text-xs font-semibold text-gray-800">{currentUser.nome.split(' ').slice(0, 2).join(' ')}</p>
               <p className="text-[10px] text-gray-500">{currentUser.cargo}</p>
             </div>
-          </button>
+          </div>
+        </div>
 
-          {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-150 bg-white py-1 shadow-lg ring-1 ring-black/5">
-              <div className="border-b border-gray-100 px-4 py-2.5 text-xs">
-                <p className="font-semibold text-gray-900">{currentUser.nome}</p>
-                <p className="text-gray-500">{currentUser.email}</p>
-                <p className="mt-0.5 text-blue-600 font-mono text-[9px]">{currentUser.matricula}</p>
+        <button
+          onClick={handleLogout}
+          className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-red-600 transition-colors"
+          title="Sair do Sistema"
+        >
+          <LogOut className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Modal de Notificação Detalhada */}
+      {selectedNotification && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setSelectedNotification(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{selectedNotification.titulo}</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  {new Date(selectedNotification.dataHora).toLocaleString('pt-BR')}
+                </p>
               </div>
-
-              <div className="px-4 py-2 text-xs border-b border-gray-100">
-                <div className="flex items-center space-x-1.5">
-                  <Shield className="h-3 w-3 text-blue-600" />
-                  <span className="font-semibold text-gray-600">Perfil:</span>
-                  <span className={`rounded-md border px-1.5 py-0.2 text-[9px] font-bold ${roleMeta.c}`}>
-                    {roleMeta.t}
-                  </span>
-                </div>
-              </div>
-
               <button
-                onClick={handleLogout}
-                className="flex w-full items-center space-x-2 px-4 py-2 text-left text-xs text-red-600 hover:bg-gray-50 transition-colors"
+                onClick={() => setSelectedNotification(null)}
+                className="text-gray-400 hover:text-gray-600"
               >
-                <LogOut className="h-3.5 w-3.5" />
-                <span>Sair do Sistema</span>
+                ✕
               </button>
             </div>
-          )}
+            
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-4">
+              <p className="text-sm text-gray-800 leading-relaxed">{selectedNotification.mensagem}</p>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-4">
+              <span>Setor: {selectedNotification.sector}</span>
+              <span className={`px-2 py-1 rounded ${selectedNotification.lida ? 'bg-gray-100' : 'bg-blue-100 text-blue-800'}`}>
+                {selectedNotification.lida ? 'Lida' : 'Não Lida'}
+              </span>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setSelectedNotification(null)}
+                className="rounded-md bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-bold"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </header>
   );
 }

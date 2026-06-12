@@ -1,6 +1,6 @@
 import React from 'react';
 import { User } from '../types';
-import { LayoutDashboard, FileText, BarChart3, History, ShieldAlert, Award, Inbox, Clock, Calendar, Users } from 'lucide-react';
+import { LayoutDashboard, FileText, BarChart3, History, ShieldAlert, Award, Clock, Calendar, Users } from 'lucide-react';
 
 interface SidebarProps {
   currentUser: User;
@@ -54,12 +54,11 @@ export default function Sidebar({ currentUser, activeView, setActiveView }: Side
       <div className="flex flex-col px-5 py-6 border-b border-slate-800">
         <div className="flex items-center space-x-2.5">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 shadow-md">
-            {/* Elegant Emblem representation */}
             <Award className="h-6 w-6 text-yellow-400" />
           </div>
           <div>
-            <h1 className="text-sm font-extrabold tracking-wider text-white">TCE RORAIMA</h1>
-            <p className="text-[10px] font-semibold text-blue-400 tracking-tight leading-none uppercase">Tribunal de Contas</p>
+            <h1 className="text-sm font-extrabold tracking-wider text-white">CRONOS</h1>
+            <p className="text-[10px] font-semibold text-blue-400 tracking-tight leading-none uppercase">Sistema de Gestão</p>
           </div>
         </div>
         <div className="mt-4 rounded-md bg-slate-800/60 p-2.5 border border-slate-700/50">

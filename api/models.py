@@ -5,12 +5,26 @@ class User(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
     matricula = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=255)
-    cargo = models.CharField(max_length=255)
+    CARGO_CHOICES = [
+        ('TC/ACE', 'Auditor de Controle Externo'),
+        ('TC/AAD', 'Analista Administrativo'),
+        ('TC/AT', 'Assessor Administrativo II'),
+        ('TC/AS', 'Assessor Administrativo I'),
+    ]
     codigo_cargo = models.CharField(max_length=50, blank=True, null=True)
-    sector = models.CharField(max_length=50)
+    SECTOR_CHOICES = [
+        ('SEAMP', 'SEAMP - Secretaria de Avaliação e Monitoramento'),
+        ('SECEX', 'SECEX - Secretaria-Geral de Controle Externo'),
+    ]
     email = models.CharField(max_length=255)
-    role = models.CharField(max_length=50)  # 'Administrador', 'Auditor', 'Gestor'
-    avatar_url = models.CharField(max_length=500, blank=True, null=True)
+    ROLE_CHOICES = [
+        ('Administrador', 'Administrador'),
+        ('Auditor', 'Auditor'),
+        ('Gestor', 'Gestor'),
+    ]
+    cargo = models.CharField(max_length=255, choices=CARGO_CHOICES)
+    sector = models.CharField(max_length=50, choices=SECTOR_CHOICES)
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
 
     def __str__(self):
         return f"{self.nome} ({self.matricula})"

@@ -109,44 +109,48 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
 
   // 2. Cumprimento de Prazos Analysis
   const timingStatistics = useMemo(() => {
-    let concluidoNoPrazo = 0;
-    let concluidoComAtraso = 0;
-    let totalConcluidas = 0;
-    let atrasadasNoMomento = 0;
-
-    sectorPortarias.forEach(p => {
-      if (p.status === 'Concluída') {
-        totalConcluidas++;
-        // If simulated completed in time or has no delays in phases
-        if (p.concluidoNoPrazo !== false) {
-          concluidoNoPrazo++;
-        } else {
-          concluidoComAtraso++;
-        }
-      } else if (p.status === 'Ativa') {
-        // Any active phase whose deadline is expired
-        let over = false;
-        p.cronograma.forEach(f => {
-          if (f.status !== 'Concluída' && f.dataFim < HOJE) {
-            over = true;
-          }
-        });
-        if (over) {
-          atrasadasNoMomento++;
-        }
+  let concluidoNoPrazo = 0;
+  let concluidoComAtraso = 0;
+  let totalConcluidas = 0;
+  let atrasadasNoMomento = 0;
+  
+  sectorPortarias.forEach(p => {
+    if (p.status === 'Concluída') {
+      totalConcluidas++;
+      // If simulated completed in time or has no delays in phases
+      if (p.concluidoNoPrazo !== false) {
+        concluidoNoPrazo++;
+      } else {
+        concluidoComAtraso++;
       }
-    });
+    } else if (p.status === 'Ativa') {
+      // Any active phase whose deadline is expired
+      let over = false;
+      p.cronograma.forEach(f => {
+        if (f.status !== 'Concluída' && f.dataFim < HOJE) {
+          over = true;
+        }
+      });
+      if (over) {
+        atrasadasNoMomento++;
+      }
+    }
+  });
 
-    const taxaConclusaoPrazo = totalConcluidas > 0 ? Math.round((concluidoNoPrazo / totalConcluidas) * 100) : 100;
+  // CORREÇÃO: Calcular taxa considerando apenas as concluídas
+  // Se não houver concluídas, mostrar 0% ou N/A
+  const taxaConclusaoPrazo = totalConcluidas > 0 
+    ? Math.round((concluidoNoPrazo / totalConcluidas) * 100) 
+    : 0;
 
-    return {
-      taxaConclusaoPrazo,
-      totalConcluidas,
-      concluidoNoPrazo,
-      concluidoComAtraso,
-      atrasadasNoMomento,
-    };
-  }, [sectorPortarias]);
+  return {
+    taxaConclusaoPrazo,
+    totalConcluidas,
+    concluidoNoPrazo,
+    concluidoComAtraso,
+    atrasadasNoMomento,
+  };
+}, [sectorPortarias]);
 
   // Excel Exporter implementation with SheetJS (Actual file download!)
   const exportToExcel = () => {

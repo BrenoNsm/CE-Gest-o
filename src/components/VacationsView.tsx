@@ -19,7 +19,7 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
   const [parcela, setParcela] = useState('2º Período');
   const [numeroPortaria, setNumeroPortaria] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
-
+  
   // Preview target vacation for the institutional model sheet
   const [previewFerias, setPreviewFerias] = useState<Ferias | null>(null);
 
@@ -42,26 +42,21 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
     return list.sort((a, b) => b.dataInicio.localeCompare(a.dataInicio));
   }, [sectorUsers]);
 
-  // Determine selectable users for registration:
-  // Admin can register for anyone, Auditor/Gestor can only register for themselves
+  // Todos podem registrar férias (sem restrição de role)
   const selectableUsers = useMemo(() => {
-    if (currentUser.role === 'Administrador') {
-      return sectorUsers;
-    }
-    return sectorUsers.filter(u => u.id === currentUser.id);
-  }, [sectorUsers, currentUser]);
+    return sectorUsers;
+  }, [sectorUsers]);
 
   // Auto initialize form variables
   React.useEffect(() => {
     if (selectableUsers.length > 0) {
       setSelectedUserId(selectableUsers[0].id);
     }
-    
     // Suggest next ordinance number based on count
     const year = new Date().getFullYear();
     const count = sectorVacations.length + 1;
     setNumeroPortaria(`${String(910 + count).padStart(3, '0')}/${year}/TCERR`);
-    
+
     // Set typical vacation date default
     setDataInicio('2026-07-13');
     setDataFim('2026-07-22');
@@ -85,7 +80,6 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!dataInicio || !dataFim) {
       alert("Por favor, preencha o período de férias.");
       return;
@@ -140,17 +134,16 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
   // Compile the official Portaria content string based on the template
   const getOrdinanceText = (f: Ferias) => {
     const prefix = f.cargoServidor.toLowerCase().includes('auditora') || f.nomeServidor.toLowerCase().endsWith('a') ? 'à servidora' : 'ao servidor';
-    return `O Diretor de Gestão Administrativa e Financeira do Tribunal de Contas do Estado de Roraima, usando de suas atribuições legais, de acordo com o art. 1º, XXVI da Portaria nº 60/2025/TCERR,\n\nConsiderando a programação anual de férias;\n\nRESOLVE:\n\nConceder férias ${prefix} ${f.nomeServidor.toUpperCase()} , ${f.cargoServidor}, código ${f.codigoCargoServidor}, no período de ${formatShowDate(f.dataInicio)} a ${formatShowDate(f.dataFim)} – ${f.dias} dias, referentes ao período aquisitivo ${f.periodoAquisitivo} – ${f.parcela}.`;
+    return `O Diretor de Gestão Administrativa e Financeira do Tribunal de Contas do Estado de Roraima, usando de suas atribuições legais, de acordo com o art. 1º, XXVI da Portaria nº 60/2025/TCERR,\n\nConsiderando a programação anual de férias;\n\nRESOLVE:\n\nConceder férias ${prefix} ${f.nomeServidor.toUpperCase()}, ${f.cargoServidor}, código ${f.codigoCargoServidor}, no período de ${formatShowDate(f.dataInicio)} a ${formatShowDate(f.dataFim)} – ${f.dias} dias, referentes ao período aquisitivo ${f.periodoAquisitivo} – ${f.parcela}.`;
   };
 
   // Professional PDF Export using jsPDF with proper margin, fonts, signatures and header
   const exportPDF = (f: Ferias) => {
     const doc = new jsPDF();
-    
     // Header Coat of Arms emblem representation
     doc.setFillColor(30, 41, 59); // Slate Blue
     doc.rect(0, 0, 210, 35, 'F');
-    
+
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
@@ -159,7 +152,7 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
     doc.setFont("helvetica", "normal");
     doc.text("DIRETORIA DE GESTÃO ADMINISTRATIVA E FINANCEIRA", 15, 22);
     doc.text("DIÁRIO OFICIAL ELETRÔNICO DO TCERR", 15, 27);
-    
+
     // Divider line
     doc.setDrawColor(234, 179, 8); // Gold color line
     doc.setLineWidth(1);
@@ -171,24 +164,24 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.text(`PORTARIA Nº ${f.numeroPortariaFerias}`, 15, y);
-    
+
     y += 15;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    
+
     // Split and render main text paragraph with margins
     const prefix = f.cargoServidor.toLowerCase().includes('auditora') || f.nomeServidor.toLowerCase().endsWith('a') ? 'à servidora' : 'ao servidor';
-    const mainText = `O Diretor de Gestão Administrativa e Financeira do Tribunal de Contas do Estado de Roraima, usando de suas atribuições legais, de acordo com o art. 1º, XXVI da Portaria nº 60/2025/TCERR,\n\nConsiderando a programação anual de férias;\n\nRESOLVE:\n\nConceder férias ${prefix} ${f.nomeServidor.toUpperCase()} , ${f.cargoServidor}, código ${f.codigoCargoServidor}, no período de ${formatShowDate(f.dataInicio)} a ${formatShowDate(f.dataFim)} – ${f.dias} dias, referentes ao período aquisitivo ${f.periodoAquisitivo} – ${f.parcela}.`;
-    
+    const mainText = `O Diretor de Gestão Administrativa e Financeira do Tribunal de Contas do Estado de Roraima, usando de suas atribuições legais, de acordo com o art. 1º, XXVI da Portaria nº 60/2025/TCERR,\n\nConsiderando a programação anual de férias;\n\nRESOLVE:\n\nConceder férias ${prefix} ${f.nomeServidor.toUpperCase()}, ${f.cargoServidor}, código ${f.codigoCargoServidor}, no período de ${formatShowDate(f.dataInicio)} a ${formatShowDate(f.dataFim)} – ${f.dias} dias, referentes ao período aquisitivo ${f.periodoAquisitivo} – ${f.parcela}.`;
+
     const lines = doc.splitTextToSize(mainText, 180);
     doc.text(lines, 15, y);
-    
+
     // Signatures
     y += 85;
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.5);
     doc.line(60, y, 150, y);
-    
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.text("Diretor de Gestão Administrativa e Financeira", 66, y + 6);
@@ -203,9 +196,8 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
     // Open a print window
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
-    
     const prefix = f.cargoServidor.toLowerCase().includes('auditora') || f.nomeServidor.toLowerCase().endsWith('a') ? 'à servidora' : 'ao servidor';
-    
+
     printWindow.document.write(`
       <html>
         <head>
@@ -234,7 +226,7 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
             
             RESOLVE:
             
-            Conceder férias ${prefix} <strong>${f.nomeServidor.toUpperCase()}</strong> , ${f.cargoServidor}, código <strong>${f.codigoCargoServidor}</strong>, no período de <strong>${formatShowDate(f.dataInicio)} a ${formatShowDate(f.dataFim)}</strong> – <strong>${f.dias} dias</strong>, referentes ao período aquisitivo <strong>${f.periodoAquisitivo}</strong> – <strong>${f.parcela}</strong>.
+            Conceder férias ${prefix} <strong>${f.nomeServidor.toUpperCase()}</strong>, ${f.cargoServidor}, código <strong>${f.codigoCargoServidor}</strong>, no período de <strong>${formatShowDate(f.dataInicio)} a ${formatShowDate(f.dataFim)}</strong> – <strong>${f.dias} dias</strong>, referentes ao período aquisitivo <strong>${f.periodoAquisitivo}</strong> – <strong>${f.parcela}</strong>.
           </div>
           <div class="signature">
             <div class="signature-title">Diretor de Gestão Administrativa e Financeira</div>
@@ -248,7 +240,6 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-4 gap-4">
         <div>
@@ -450,20 +441,19 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
                             {f.periodoAquisitivo} ({f.parcela.split(' ')[0]})
                           </td>
                           <td className="p-3 text-right space-x-1" onClick={e => e.stopPropagation()}>
-                            {(currentUser.role === 'Administrador' || currentUser.matricula === f.matriculaServidor) && (
-                              <button
-                                onClick={async () => {
-                                  if (window.confirm("Deseja realmente remover o registro de férias? Isso cancelará a portaria vinculada.")) {
-                                    await onDeleteVacation(f.id);
-                                    if (previewFerias?.id === f.id) setPreviewFerias(null);
-                                  }
-                                }}
-                                className="text-gray-400 hover:text-red-650 p-1 transition-colors"
-                                title="Excluir Registro"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
+                            {/* Todos podem excluir - sem restrição de role */}
+                            <button
+                              onClick={async () => {
+                                if (window.confirm("Deseja realmente remover o registro de férias? Isso cancelará a portaria vinculada.")) {
+                                  await onDeleteVacation(f.id);
+                                  if (previewFerias?.id === f.id) setPreviewFerias(null);
+                                }
+                              }}
+                              className="text-gray-400 hover:text-red-650 p-1 transition-colors"
+                              title="Excluir Registro"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -483,7 +473,7 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
                 <FileText className="h-4.5 w-4.5" />
                 <span>Visualizador de Portaria Oficial</span>
               </div>
-              
+            
               {!previewFerias ? (
                 <div className="flex flex-col items-center justify-center text-center text-xs text-slate-400 py-16">
                   <Award className="h-10 w-10 text-slate-600 mb-2" />
