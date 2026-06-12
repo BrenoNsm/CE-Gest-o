@@ -1,0 +1,6 @@
+{
+  "name": "Gestão de Portarias TCERR",
+  "description": "Sistema de gestão, acompanhamento e relatórios de portarias de fiscalização para o Tribunal de Contas do Estado de Roraima (TCERR).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
