@@ -3,18 +3,22 @@ from .models import User, Ferias, Portaria, Fase, Documento, Comentario, AuditLo
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('matricula', 'nome', 'cargo', 'sector', 'role', 'email')
-    list_filter = ('sector', 'role')
+    # Removido 'role' de list_display e list_filter
+    list_display = ('matricula', 'nome', 'cargo', 'sector', 'email')
+    list_filter = ('sector',)
     search_fields = ('matricula', 'nome', 'email')
     ordering = ('nome',)
     
-    # Campos como dropdown
+    # Campos organizados em seções - Removido 'role' e 'avatar_url'
     fieldsets = (
+        ('Identificação', {
+            'fields': ('id', 'matricula')
+        }),
         ('Informações Pessoais', {
-            'fields': ('matricula', 'nome', 'email')
+            'fields': ('nome', 'email')
         }),
         ('Informações Profissionais', {
-            'fields': ('cargo', 'codigoCargo', 'sector', 'role')
+            'fields': ('cargo', 'codigo_cargo', 'sector')
         }),
     )
 

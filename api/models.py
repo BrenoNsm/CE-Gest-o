@@ -1,30 +1,14 @@
 from django.db import models
 
-# Create your models here.
 class User(models.Model):
+    # Manter ID como CharField para compatibilidade com frontend
     id = models.CharField(max_length=50, primary_key=True)
     matricula = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=255)
-    CARGO_CHOICES = [
-        ('TC/ACE', 'Auditor de Controle Externo'),
-        ('TC/AAD', 'Analista Administrativo'),
-        ('TC/AT', 'Assessor Administrativo II'),
-        ('TC/AS', 'Assessor Administrativo I'),
-    ]
-    codigo_cargo = models.CharField(max_length=50, blank=True, null=True)
-    SECTOR_CHOICES = [
-        ('SEAMP', 'SEAMP - Secretaria de Avaliação e Monitoramento'),
-        ('SECEX', 'SECEX - Secretaria-Geral de Controle Externo'),
-    ]
+    cargo = models.CharField(max_length=255)
+    sector = models.CharField(max_length=50)
     email = models.CharField(max_length=255)
-    ROLE_CHOICES = [
-        ('Administrador', 'Administrador'),
-        ('Auditor', 'Auditor'),
-        ('Gestor', 'Gestor'),
-    ]
-    cargo = models.CharField(max_length=255, choices=CARGO_CHOICES)
-    sector = models.CharField(max_length=50, choices=SECTOR_CHOICES)
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    avatar_url = models.CharField(max_length=500, blank=True, null=True)
 
     def __str__(self):
         return f"{self.nome} ({self.matricula})"
@@ -36,14 +20,13 @@ class Ferias(models.Model):
     matricula_servidor = models.CharField(max_length=50)
     nome_servidor = models.CharField(max_length=255)
     cargo_servidor = models.CharField(max_length=255)
-    codigo_cargo_servidor = models.CharField(max_length=50)
     numero_portaria_ferias = models.CharField(max_length=100)
-    data_inicio = models.CharField(max_length=50)  # YYYY-MM-DD
-    data_fim = models.CharField(max_length=50)     # YYYY-MM-DD
+    data_inicio = models.CharField(max_length=50)
+    data_fim = models.CharField(max_length=50)
     dias = models.IntegerField()
     periodo_aquisitivo = models.CharField(max_length=50)
     parcela = models.CharField(max_length=50)
-    data_cadastro = models.CharField(max_length=50) # ISO String
+    data_cadastro = models.CharField(max_length=50)
 
     def __str__(self):
         return f"Férias {self.nome_servidor} - {self.numero_portaria_ferias}"
@@ -54,7 +37,6 @@ class Portaria(models.Model):
     numero = models.CharField(max_length=100)
     tipo = models.CharField(max_length=100)
     data_publicacao = models.CharField(max_length=50)
-    # Usamos nomes sem acento no Python, o Serializer corrigirá para 'dataInicioPeríodo' no JSON
     data_inicio_periodo = models.CharField(max_length=50, db_column='dataInicioPeriodo')
     data_fim_periodo = models.CharField(max_length=50, db_column='dataFimPeriodo')
     fundamentacao = models.TextField()
@@ -62,25 +44,20 @@ class Portaria(models.Model):
     status = models.CharField(max_length=50)
     sector = models.CharField(max_length=50)
     
-    # Dados do Auditor (Flat no DB, aninhado no Serializer)
     auditor_nome = models.CharField(max_length=255)
     auditor_cargo = models.CharField(max_length=255)
     auditor_matricula = models.CharField(max_length=50)
     
-    # Dados do Supervisor (Flat no DB, aninhado no Serializer)
     supervisor_nome = models.CharField(max_length=255)
     supervisor_cargo = models.CharField(max_length=255)
     supervisor_sector = models.CharField(max_length=50)
     
-    # JSONField é nativo e otimizado no PostgreSQL
     unidades_jurisdicionadas = models.JSONField(default=list)
     
     concluido_no_prazo = models.BooleanField(default=True)
     tempo_atraso_dias = models.IntegerField(default=0)
 
     class Meta:
-        # Garante que o Django use o nome com acento na coluna do banco, se preferir, 
-        # mas o Serializer é quem realmente importa para o frontend.
         db_table = 'api_portaria'
 
     def __str__(self):
