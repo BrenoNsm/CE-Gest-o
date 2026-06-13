@@ -129,17 +129,7 @@ Nesse caso, altere o proxy no `vite.config.ts` para apontar para `localhost:3001
 
 ## Dados Fictícios para Teste
 
-O comando `seed_test_data` cria:
-
-**Usuários:**
-| Nome               | Matrícula | Setor | Senha     |
-|--------------------|-----------|-------|-----------|
-| Valdélia Vieira    | 001       | SEAMP | 123       |
-| Carlos Heider      | 002       | SEAMP | 123       |
-| Renata Cristina    | 003       | SEAMP | 123       |
-| Marcelo Augusto    | 004       | SECEX | 123       |
-| Dr. Roberto        | 005       | SECEX | 123       |
-| Patrícia Oliveira  | 006       | SECEX | 123       |
+O comando `seed_test_data`
 
 **Portarias de exemplo:**
 - **016/2026/TCERR** — Fiscalização de Auditoria nos Municípios (SEAMP) — fases: Planejamento → Execução → Relatório
