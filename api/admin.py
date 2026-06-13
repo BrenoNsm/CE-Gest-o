@@ -12,13 +12,13 @@ class UserAdmin(admin.ModelAdmin):
     # Campos organizados em seções - Removido 'role' e 'avatar_url'
     fieldsets = (
         ('Identificação', {
-            'fields': ('id', 'matricula')
+            'fields': ('matricula',)
         }),
         ('Informações Pessoais', {
             'fields': ('nome', 'email')
         }),
         ('Informações Profissionais', {
-            'fields': ('cargo', 'codigo_cargo', 'sector')
+            'fields': ('cargo', 'sector')
         }),
     )
 

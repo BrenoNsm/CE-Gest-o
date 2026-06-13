@@ -1,12 +1,23 @@
 from django.db import models
 
 class User(models.Model):
-    # Manter ID como CharField para compatibilidade com frontend
-    id = models.CharField(max_length=50, primary_key=True)
     matricula = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=255)
-    cargo = models.CharField(max_length=255)
-    sector = models.CharField(max_length=50)
+    
+    CARGO_CHOICES = [
+        ('Assessor Administrativo I', 'Assessor Administrativo I'),
+        ('Assessor Administrativo II', 'Assessor Administrativo II'),
+        ('Assessor Tecnico de Controle Externo', 'Assessor Tecnico de Controle Externo'),
+        ('Auditor de Controle Externo', 'Auditor de Controle Externo'),
+    ]
+    cargo = models.CharField(max_length=255, choices=CARGO_CHOICES)
+    
+    SECTOR_CHOICES = [
+        ('SEAMP', 'SEAMP'),
+        ('SECEX', 'SECEX'),
+    ]
+    sector = models.CharField(max_length=50, choices=SECTOR_CHOICES)
+    
     email = models.CharField(max_length=255)
     avatar_url = models.CharField(max_length=500, blank=True, null=True)
 

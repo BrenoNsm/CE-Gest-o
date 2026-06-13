@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Portaria, Fase } from '../types';
 import { MUNICIPIOS_RR, calcularDiasUteis } from '../data';
-import { Save, X, Plus, Trash2, Calendar, FileText, UserCheck, CheckSquare, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Save, X, Plus, Trash2, Calendar, FileText, UserCheck, CheckSquare, RefreshCw, AlertTriangle, MapPin } from 'lucide-react';
 
 interface PortariaFormProps {
   currentUser: User;
@@ -10,6 +10,11 @@ interface PortariaFormProps {
   onSave: (portaria: Portaria) => void;
   onCancel: () => void;
 }
+
+const JURISDICIONADAS = [
+  'Estado de Roraima',
+  ...MUNICIPIOS_RR
+];
 
 export default function PortariaForm({ currentUser, users, editingPortaria, onSave, onCancel }: PortariaFormProps) {
   // General Fields
@@ -36,19 +41,18 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
     id: '', nome: 'Planejamento', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
   });
   const [faseExecucao, setFaseExecucao] = useState<Fase>({
-    id: 'p2', nome: 'Execução', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
+    id: '', nome: 'Execução', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
   });
   const [faseRelatorio, setFaseRelatorio] = useState<Fase>({
-    id: 'p3', nome: 'Relatório', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
+    id: '', nome: 'Relatório', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
   });
 
-  // Filter auditors of CURRENT sector only as per organization constraints
-  const listSectoredAuditors = users.filter(u => u.sector === currentUser.sector && u.role === 'Auditor');
-  const listSectoredSupervisors = users.filter(u => u.sector === currentUser.sector && u.role === 'Administrador');
+  // All users in the same sector can be auditors or supervisors
+  const listSectoredUsers = users.filter(u => u.sector === currentUser.sector);
 
   // Fetch auditor chosen details
-  const chosenAuditor = listSectoredAuditors.find(a => a.matricula === auditorMatricula);
-  const chosenSupervisor = listSectoredSupervisors.find(s => s.nome === supervisorName);
+  const chosenAuditor = listSectoredUsers.find(a => a.matricula === auditorMatricula);
+  const chosenSupervisor = listSectoredUsers.find(s => s.nome === supervisorName);
 
   // Initialize/hydrate form if editing
   useEffect(() => {
@@ -73,41 +77,23 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
       if (fExec) setFaseExecucao(fExec);
       if (fRel) setFaseRelatorio(fRel);
     } else {
-      // Set some realistic placeholder dates in 2026 for convenience based on current system time
+      // Reset form - leave everything empty for user to fill
       setNumero('');
       setTipo('Portaria de Fiscalização');
-      
-      const todayStr = '2026-05-05';
-      setDataPublicacao(todayStr);
-      setDataInicioPeríodo(todayStr);
-      setDataFimPeríodo('2026-12-18');
-      
-      setFundamentacao('Resolução Ad Referendum nº 04/2026-TCERR-PLENO PAF 2025');
+      setDataPublicacao('');
+      setDataInicioPeríodo('');
+      setDataFimPeríodo('');
+      setFundamentacao('');
       setObjetivo('');
       setStatus('Ativa');
-      
-      // Auto-select first auditor of sector
-      if (listSectoredAuditors.length > 0) {
-        setAuditorMatricula(listSectoredAuditors[0].matricula);
-      }
-      
-      // Auto-select first supervisor of sector
-      if (listSectoredSupervisors.length > 0) {
-        setSupervisorName(listSectoredSupervisors[0].nome);
-      }
-
+      setAuditorMatricula('');
+      setSupervisorName('');
       setUnidades([]);
 
-      // Setup standard phase dates
-      setFasePlanejamento({
-        id: '', nome: 'Planejamento', dataInicio: '2026-05-05', dataFim: '2026-05-15', duracaoDiasUteis: 9, status: 'Pendente'
-      });
-      setFaseExecucao({
-        id: '', nome: 'Execução', dataInicio: '2026-05-18', dataFim: '2026-09-30', duracaoDiasUteis: 92, status: 'Pendente'
-      });
-      setFaseRelatorio({
-        id: '', nome: 'Relatório', dataInicio: '2026-10-01', dataFim: '2026-12-18', duracaoDiasUteis: 51, status: 'Pendente'
-      });
+      // Reset phases to empty
+      setFasePlanejamento({ id: '', nome: 'Planejamento', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente' });
+      setFaseExecucao({ id: '', nome: 'Execução', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente' });
+      setFaseRelatorio({ id: '', nome: 'Relatório', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente' });
     }
   }, [editingPortaria, currentUser.sector]);
 
@@ -149,10 +135,10 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
   };
 
   const handleSelectAllUnidades = () => {
-    if (unidades.length === MUNICIPIOS_RR.length) {
+    if (unidades.length === JURISDICIONADAS.length) {
       setUnidades([]);
     } else {
-      setUnidades([...MUNICIPIOS_RR]);
+      setUnidades([...JURISDICIONADAS]);
     }
   };
 
@@ -401,8 +387,8 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
                   className="w-full rounded-md border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:border-blue-600 focus:outline-hidden"
                 >
                   <option value="">-- Escolher Auditor --</option>
-                  {listSectoredAuditors.map(a => (
-                    <option key={a.id} value={a.matricula}>{a.nome} ({a.matricula})</option>
+                  {listSectoredUsers.map(a => (
+                    <option key={a.id} value={a.matricula}>{a.nome} ({a.cargo}) - {a.matricula}</option>
                   ))}
                 </select>
               </div>
@@ -431,8 +417,8 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
                   className="w-full rounded-md border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:border-blue-600 focus:outline-hidden"
                 >
                   <option value="">-- Escolher Supervisor --</option>
-                  {listSectoredSupervisors.map(s => (
-                    <option key={s.id} value={s.nome}>{s.nome}</option>
+                  {listSectoredUsers.map(s => (
+                    <option key={s.id} value={s.nome}>{s.nome} ({s.cargo})</option>
                   ))}
                 </select>
               </div>
@@ -457,19 +443,20 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
               onClick={handleSelectAllUnidades}
               className="text-[11px] font-semibold text-blue-700 hover:underline"
             >
-              {unidades.length === MUNICIPIOS_RR.length ? 'Desmarcar Todas' : 'Selecionar Todas os Municípios (15)'}
+              {unidades.length === JURISDICIONADAS.length ? 'Desmarcar Todas' : 'Selecionar Todas'}
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-1 bg-white rounded-lg border border-gray-100 max-h-48 overflow-y-auto">
-            {MUNICIPIOS_RR.map(muni => {
+            {JURISDICIONADAS.map(muni => {
               const isChecked = unidades.includes(muni);
+              const isState = muni === 'Estado de Roraima';
               return (
                 <label
                   key={muni}
                   className={`flex items-start space-x-2 rounded-md p-2 hover:bg-slate-50 cursor-pointer text-xs transition-colors ${
                     isChecked ? 'bg-blue-50/50 font-semibold text-blue-900' : 'text-gray-700'
-                  }`}
+                  } ${isState ? 'bg-amber-50 border-amber-200' : ''}`}
                 >
                   <input
                     type="checkbox"
@@ -477,7 +464,10 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
                     onChange={() => handleToggleUnidade(muni)}
                     className="mt-0.5 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
                   />
-                  <span>{muni.replace('Prefeitura Municipal de ', '')}</span>
+                  <span className={isState ? 'font-semibold text-amber-800' : ''}>
+                    {isState ? <MapPin className="h-3.5 w-3.5 inline mr-1" /> : ''}
+                    {muni.replace('Prefeitura Municipal de ', '')}
+                  </span>
                 </label>
               );
             })}

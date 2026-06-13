@@ -22,8 +22,7 @@ export const MUNICIPIOS_RR = [
 // Available Sectors in TCERR
 export const SETORES: SetorConfig[] = [
   { id: 'SEAMP', sigla: 'SEAMP', nome: 'Secretaria de Avaliação e Monitoramento de Políticas Públicas', corPrincipal: '#0284c7' },
-  { id: 'SECGE', sigla: 'SECGE', nome: 'Secretaria-Geral de Controle Externo', corPrincipal: '#1e3a8a' },
-  { id: 'DICOP', sigla: 'DICOP', nome: 'Divisão de Fiscalização de Obras Públicas', corPrincipal: '#0f766e' }
+  { id: 'SECEX', sigla: 'SECEX', nome: 'Secretaria de Controle Externo', corPrincipal: '#1e3a8a' }
 ];
 
 // Pre-loaded users (can login with matrícula as password)
@@ -33,10 +32,9 @@ export const KEY_USERS: User[] = [
     id: 'usr-1',
     matricula: '10020-3',
     nome: 'Valdélia Vieira dos Santos Lena',
-    cargo: 'Secretária da SEAMP / ACE Sênior',
+    cargo: 'Assessor Administrativo I',
     sector: 'SEAMP',
     email: 'vd.lena@tcerr.tc.br',
-    role: 'Administrador',
     avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'
   },
   {
@@ -46,48 +44,43 @@ export const KEY_USERS: User[] = [
     cargo: 'Auditor de Controle Externo',
     sector: 'SEAMP',
     email: 'ch.souza@tcerr.tc.br',
-    role: 'Auditor',
     avatarUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150'
   },
   {
     id: 'usr-3',
     matricula: '20155-2',
     nome: 'Renata Vasconcelos de Alencar',
-    cargo: 'Auditora de Controle Externo',
+    cargo: 'Auditor de Controle Externo',
     sector: 'SEAMP',
     email: 'rv.alencar@tcerr.tc.br',
-    role: 'Auditor',
     avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150'
   },
   {
     id: 'usr-4',
     matricula: '30040-5',
     nome: 'Marcelo Lima de Castro',
-    cargo: 'Coordenador de Monitoramento / ACE',
+    cargo: 'Assessor Tecnico de Controle Externo',
     sector: 'SEAMP',
     email: 'ml.castro@tcerr.tc.br',
-    role: 'Gestor',
     avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150'
   },
-  // SECGE
+  // SECEX
   {
     id: 'usr-5',
     matricula: '10010-0',
     nome: 'Dr. Roberto Mendes Albuquerque',
-    cargo: 'Secretário Geral da SECGE / ACE Executivo',
-    sector: 'SECGE',
+    cargo: 'Assessor Administrativo II',
+    sector: 'SECEX',
     email: 'rm.albuquerque@tcerr.tc.br',
-    role: 'Administrador',
     avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150'
   },
   {
     id: 'usr-6',
     matricula: '20240-8',
     nome: 'Patrícia Helena de Souza',
-    cargo: 'Auditora de Controle Externo',
-    sector: 'SECGE',
+    cargo: 'Auditor de Controle Externo',
+    sector: 'SECEX',
     email: 'ph.souza@tcerr.tc.br',
-    role: 'Auditor',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
   }
 ];

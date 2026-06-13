@@ -31,16 +31,6 @@ export default function Header({
     onLogout();
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'Administrador': return { t: 'Administrador', c: 'bg-red-50 text-red-700 border-red-200' };
-      case 'Gestor': return { t: 'Gestor/Coordenador', c: 'bg-amber-50 text-amber-700 border-amber-200' };
-      default: return { t: 'Auditor do Setor', c: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    }
-  };
-
-  const roleMeta = getRoleLabel(currentUser.role);
-
   const handleNotificationClick = (notif: SystemNotification) => {
     setSelectedNotification(notif);
     if (!notif.lida) {

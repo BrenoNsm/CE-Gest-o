@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Portaria, User, Fase } from '../types';
-import { Calendar, ChevronLeft, ChevronRight, AlertTriangle, Briefcase, Sun, Info, User as UserIcon } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Portaria, User } from '../types';
+import { Calendar, ChevronLeft, ChevronRight, Briefcase, Sun, Info, Check, ChevronDown, X } from 'lucide-react';
 
 interface CalendarViewProps {
   currentUser: User;
@@ -15,19 +15,33 @@ interface CalendarEvent {
   startDate: string;
   endDate: string;
   color: string;
-  meta: any; // original object reference
+  meta: any;
 }
 
 export default function CalendarView({ currentUser, portarias, users }: CalendarViewProps) {
-  // Base date fixed at June 12, 2026
-  const SYSTEM_TODAY = new Date('2026-06-12');
-  
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(SYSTEM_TODAY.getFullYear(), SYSTEM_TODAY.getMonth(), 1));
+  const todayDate = new Date();
+  const todayStr = formatDateStr(todayDate);
+
+  const [currentDate, setCurrentDate] = useState<Date>(new Date(todayDate.getFullYear(), todayDate.getMonth(), 1));
   const [filterType, setFilterType] = useState<'all' | 'audits' | 'vacations'>('all');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedServers, setSelectedServers] = useState<string[]>([]);
+  const [serverFilterOpen, setServerFilterOpen] = useState(false);
+
+  const serverDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (serverDropdownRef.current && !serverDropdownRef.current.contains(e.target as Node)) {
+        setServerFilterOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const year = currentDate.getFullYear();
-  const month = currentDate.getMonth(); // 0-indexed
+  const month = currentDate.getMonth();
 
   const MONTHS_PT = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -36,26 +50,22 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
 
   const DAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-  // Filter portarias of CURRENT sector
   const sectorPortarias = useMemo(() => {
     return portarias.filter(p => p.sector === currentUser.sector);
   }, [portarias, currentUser.sector]);
 
-  // Filter users of CURRENT sector
   const sectorUsers = useMemo(() => {
     return users.filter(u => u.sector === currentUser.sector);
   }, [users, currentUser.sector]);
 
-  // Compile all calendar events (phases and vacations)
   const events = useMemo(() => {
     const list: CalendarEvent[] = [];
 
-    // 1. Audit Phases
     if (filterType === 'all' || filterType === 'audits') {
       sectorPortarias.forEach(p => {
         if (p.status === 'Ativa') {
           p.cronograma.forEach(f => {
-            let color = 'bg-slate-100 text-slate-700 border-slate-350';
+            let color = 'bg-slate-100 text-slate-700 border-slate-300';
             if (f.status === 'Em andamento') color = 'bg-blue-100 text-blue-800 border-blue-300';
             else if (f.status === 'Concluída') color = 'bg-emerald-100 text-emerald-800 border-emerald-300';
 
@@ -73,7 +83,6 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
       });
     }
 
-    // 2. Vacations (Férias)
     if (filterType === 'all' || filterType === 'vacations') {
       sectorUsers.forEach(u => {
         if (u.ferias && Array.isArray(u.ferias)) {
@@ -84,7 +93,7 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
               title: `Férias: ${u.nome.split(' ')[0]}`,
               startDate: fer.dataInicio,
               endDate: fer.dataFim,
-              color: 'bg-amber-100 text-amber-900 border-amber-350',
+              color: 'bg-amber-100 text-amber-900 border-amber-300',
               meta: { user: u, ferias: fer }
             });
           });
@@ -95,18 +104,26 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
     return list;
   }, [sectorPortarias, sectorUsers, filterType]);
 
-  // Calendar Grid Calculation
+  const visibleEvents = useMemo(() => {
+    if (selectedServers.length === 0) return events;
+    return events.filter(e => {
+      if (e.type === 'fase') {
+        return selectedServers.includes(e.meta.portaria.auditorDesignado.matricula);
+      }
+      if (e.type === 'ferias') {
+        return selectedServers.includes(e.meta.user.matricula);
+      }
+      return true;
+    });
+  }, [events, selectedServers]);
+
   const gridCells = useMemo(() => {
     const cells = [];
-    
-    // First day of current month
+
     const firstDayIndex = new Date(year, month, 1).getDay();
-    // Days in current month
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    // Days in previous month
     const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-    // Previous month filler days
     for (let i = firstDayIndex - 1; i >= 0; i--) {
       const prevDate = new Date(year, month - 1, daysInPrevMonth - i);
       cells.push({
@@ -117,7 +134,6 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
       });
     }
 
-    // Current month days
     for (let i = 1; i <= daysInMonth; i++) {
       const currDate = new Date(year, month, i);
       cells.push({
@@ -128,7 +144,6 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
       });
     }
 
-    // Next month filler days (to make the grid complete 42 cells)
     const remaining = 42 - cells.length;
     for (let i = 1; i <= remaining; i++) {
       const nextDate = new Date(year, month + 1, i);
@@ -143,56 +158,6 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
     return cells;
   }, [year, month]);
 
-  // Conflict Detection: check if any auditor has an audit phase overlapping with their vacation
-  // Returns conflicts associated with a date string
-  const dateConflicts = useMemo(() => {
-    const conflictsMap: Record<string, Array<{ auditor: string; portaria: string; fase: string; feriasPeriod: string }>> = {};
-
-    sectorPortarias.forEach(p => {
-      if (p.status !== 'Ativa') return;
-      
-      const auditor = sectorUsers.find(u => u.matricula === p.auditorDesignado.matricula);
-      if (!auditor || !auditor.ferias) return;
-
-      p.cronograma.forEach(f => {
-        if (f.status === 'Concluída') return; // completed phases don't conflict
-
-        // Check against vacations
-        auditor.ferias?.forEach(fer => {
-          // Check overlap between [f.dataInicio, f.dataFim] and [fer.dataInicio, fer.dataFim]
-          const startMax = f.dataInicio > fer.dataInicio ? f.dataInicio : fer.dataInicio;
-          const endMin = f.dataFim < fer.dataFim ? f.dataFim : fer.dataFim;
-
-          if (startMax <= endMin) {
-            // There is an overlap! Highlight dates in that range
-            const startD = new Date(startMax);
-            const endD = new Date(endMin);
-            const curr = new Date(startD);
-
-            while (curr <= endD) {
-              const dateKey = formatDateStr(curr);
-              if (!conflictsMap[dateKey]) conflictsMap[dateKey] = [];
-              
-              const alreadyListed = conflictsMap[dateKey].some(c => c.portaria === p.numero && c.fase === f.nome);
-              if (!alreadyListed) {
-                conflictsMap[dateKey].push({
-                  auditor: auditor.nome,
-                  portaria: p.numero,
-                  fase: f.nome,
-                  feriasPeriod: `${formatShowDate(fer.dataInicio)} a ${formatShowDate(fer.dataFim)}`
-                });
-              }
-              curr.setDate(curr.getDate() + 1);
-            }
-          }
-        });
-      });
-    });
-
-    return conflictsMap;
-  }, [sectorPortarias, sectorUsers]);
-
-  // Helper date functions
   function formatDateStr(d: Date): string {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -216,51 +181,52 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
   };
 
   const setToday = () => {
-    setCurrentDate(new Date(SYSTEM_TODAY.getFullYear(), SYSTEM_TODAY.getMonth(), 1));
+    const now = new Date();
+    setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
   };
 
-  const groupedConflicts = useMemo((): Array<{
-    auditor: string;
-    portaria: string;
-    fase: string;
-    feriasPeriod: string;
-    start: string;
-    end: string;
-  }> => {
-    const acc: Record<string, { auditor: string; portaria: string; fase: string; feriasPeriod: string; start: string; end: string }> = {};
-    const typedEntries = Object.entries(dateConflicts) as Array<[string, Array<{ auditor: string; portaria: string; fase: string; feriasPeriod: string }>]>;
-    typedEntries.forEach(([date, list]) => {
-      list.forEach(c => {
-        const key = `${c.auditor}-${c.portaria}-${c.fase}`;
-        if (!acc[key]) {
-          acc[key] = { ...c, start: date, end: date };
-        } else {
-          if (date < acc[key].start) acc[key].start = date;
-          if (date > acc[key].end) acc[key].end = date;
-        }
-      });
-    });
-    return Object.values(acc);
-  }, [dateConflicts]);
+  const handleToggleServer = (matricula: string) => {
+    setSelectedServers(prev =>
+      prev.includes(matricula)
+        ? prev.filter(m => m !== matricula)
+        : [...prev, matricula]
+    );
+  };
+
+  const handleClearServerFilter = () => {
+    setSelectedServers([]);
+  };
+
+  const handleToggleAllServers = () => {
+    if (selectedServers.length === sectorUsers.length) {
+      setSelectedServers([]);
+    } else {
+      setSelectedServers(sectorUsers.map(u => u.matricula));
+    }
+  };
+
+  const serverFilterLabel = selectedServers.length === 0
+    ? 'Todos os servidores'
+    : `${selectedServers.length} servidor${selectedServers.length > 1 ? 'es' : ''}`;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      
+
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-4 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4 gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900 leading-none">Calendário de Prazos & Férias</h2>
-          <p className="text-xs text-gray-500 mt-1">Acompanhe visualmente as fases de fiscalizações em andamento e previna conflitos de prazos com férias de servidores.</p>
+          <p className="text-xs text-gray-500 mt-1">Acompanhe visualmente as fases de fiscalizações em andamento e períodos de férias dos servidores.</p>
         </div>
 
         {/* Filters */}
         <div className="flex items-center space-x-2">
           <span className="text-xs text-gray-500 font-semibold hidden md:inline">Filtrar Eventos:</span>
-          <div className="rounded-lg border border-gray-250 p-0.5 flex bg-white text-xs">
+          <div className="rounded-lg border border-gray-200 p-0.5 flex bg-white text-xs">
             <button
               onClick={() => setFilterType('all')}
               className={`rounded-md px-3 py-1 font-semibold transition-all ${
-                filterType === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-650 hover:text-gray-900'
+                filterType === 'all' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               Todos
@@ -268,7 +234,7 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
             <button
               onClick={() => setFilterType('audits')}
               className={`rounded-md px-3 py-1 font-semibold transition-all ${
-                filterType === 'audits' ? 'bg-blue-650 text-white shadow-xs' : 'text-gray-650 hover:text-gray-900'
+                filterType === 'audits' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               Auditorias
@@ -276,29 +242,98 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
             <button
               onClick={() => setFilterType('vacations')}
               className={`rounded-md px-3 py-1 font-semibold transition-all ${
-                filterType === 'vacations' ? 'bg-blue-650 text-white shadow-xs' : 'text-gray-650 hover:text-gray-900'
+                filterType === 'vacations' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               Férias
             </button>
           </div>
+
+          {/* Server Filter Dropdown */}
+          <div className="relative" ref={serverDropdownRef}>
+            <button
+              onClick={() => setServerFilterOpen(!serverFilterOpen)}
+              className={`flex items-center space-x-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
+                selectedServers.length > 0
+                  ? 'border-blue-300 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 bg-white text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <span>{serverFilterLabel}</span>
+              <ChevronDown className={`h-3 w-3 transition-transform ${serverFilterOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {serverFilterOpen && (
+              <div className="absolute right-0 top-full mt-1 z-40 w-64 rounded-xl border border-gray-200 bg-white shadow-lg p-2 space-y-1 max-h-72 overflow-y-auto">
+                <div className="flex items-center justify-between px-2 py-1 border-b border-gray-100 pb-2 mb-1">
+                  <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Servidores do Setor</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleToggleAllServers}
+                      className="text-[10px] text-blue-600 font-semibold hover:underline"
+                    >
+                      {selectedServers.length === sectorUsers.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                    </button>
+                    {selectedServers.length > 0 && (
+                      <button
+                        onClick={handleClearServerFilter}
+                        className="text-[10px] text-gray-500 font-semibold hover:text-gray-700 flex items-center space-x-0.5"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                        <span>Limpar</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {sectorUsers.map(u => {
+                  const isChecked = selectedServers.includes(u.matricula);
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => handleToggleServer(u.matricula)}
+                      className={`flex items-center space-x-2 rounded-lg px-2 py-1.5 cursor-pointer text-xs transition-colors ${
+                        isChecked ? 'bg-blue-50 text-blue-900 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className={`h-4 w-4 rounded border flex items-center justify-center transition-all ${
+                        isChecked ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                      }`}>
+                        {isChecked && <Check className="h-3 w-3 text-white stroke-[3px]" />}
+                      </div>
+                      <div className="flex flex-col leading-tight">
+                        <span>{u.nome}</span>
+                        <span className="text-[9px] text-gray-400">{u.cargo}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {sectorUsers.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-3">Nenhum servidor no setor</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
+
         {/* Calendar Core Grid */}
-        <div className="lg:col-span-3 rounded-xl border border-gray-150 bg-white p-5 shadow-3xs space-y-4">
-          
+        <div className="lg:col-span-3 rounded-xl border border-gray-200 bg-white p-5 shadow-xs space-y-4">
+
           {/* Calendar Controller Header */}
           <div className="flex items-center justify-between pb-2">
             <div className="flex items-center space-x-2">
               <h3 className="text-lg font-bold text-gray-900 font-sans">
                 {MONTHS_PT[month]} de <span className="font-mono text-blue-900">{year}</span>
               </h3>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-gray-500 font-mono">
-                Sandbox: 2026
-              </span>
+              {todayDate.getFullYear() === 2026 && (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-gray-500 font-mono">
+                  Sandbox: 2026
+                </span>
+              )}
             </div>
 
             <div className="flex items-center space-x-1">
@@ -307,9 +342,9 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
                 className="rounded-lg border border-gray-200 bg-white p-1.5 hover:bg-slate-50 transition-colors"
                 title="Mês anterior"
               >
-                <ChevronLeft className="h-4.5 w-4.5 text-gray-600" />
+                <ChevronLeft className="h-4 w-4 text-gray-600" />
               </button>
-              
+
               <button
                 onClick={setToday}
                 className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold hover:bg-slate-50 transition-colors text-gray-700"
@@ -322,15 +357,15 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
                 className="rounded-lg border border-gray-200 bg-white p-1.5 hover:bg-slate-50 transition-colors"
                 title="Próximo mês"
               >
-                <ChevronRight className="h-4.5 w-4.5 text-gray-600" />
+                <ChevronRight className="h-4 w-4 text-gray-600" />
               </button>
             </div>
           </div>
 
           {/* Monthly grid */}
-          <div className="border border-gray-150 rounded-xl overflow-hidden bg-slate-50">
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-slate-50">
             {/* Days Header */}
-            <div className="grid grid-cols-7 text-center bg-slate-100/80 border-b border-gray-150 text-[10px] font-bold uppercase tracking-wider text-gray-500 py-2">
+            <div className="grid grid-cols-7 text-center bg-slate-100/80 border-b border-gray-200 text-[10px] font-bold uppercase tracking-wider text-gray-500 py-2">
               {DAYS_SHORT.map(d => (
                 <div key={d} className={d === "Dom" || d === "Sáb" ? "text-slate-400" : ""}>{d}</div>
               ))}
@@ -339,11 +374,9 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
             {/* Calendar Days Cells */}
             <div className="grid grid-cols-7 grid-rows-6 h-120 bg-white">
               {gridCells.map((cell, idx) => {
-                const isToday = cell.dateStr === '2026-06-12';
-                const dayConflicts = dateConflicts[cell.dateStr];
-                
-                // Get events starting or running on this day
-                const dayEvents = events.filter(e => {
+                const isToday = cell.dateStr === todayStr;
+
+                const dayEvents = visibleEvents.filter(e => {
                   return e.startDate <= cell.dateStr && e.endDate >= cell.dateStr;
                 });
 
@@ -357,22 +390,12 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
                     {/* Day indicator */}
                     <div className="flex items-center justify-between text-[11px] font-bold">
                       <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full leading-none ${
-                        isToday 
-                          ? 'bg-blue-600 text-white shadow-xs font-extrabold ring-2 ring-blue-100' 
+                        isToday
+                          ? 'bg-blue-600 text-white shadow-xs font-extrabold ring-2 ring-blue-100'
                           : cell.isCurrentMonth ? 'text-gray-600' : 'text-gray-300'
                       }`}>
                         {cell.dayNum}
                       </span>
-
-                      {/* Overlap Conflicts Indicator */}
-                      {dayConflicts && dayConflicts.length > 0 && (
-                        <span 
-                          className="rounded-full bg-rose-50 text-rose-600 p-0.5 border border-rose-100 shadow-3xs cursor-help"
-                          title={`Alerta: Conflito de férias de servidor detectado no dia (${dayConflicts.length})`}
-                        >
-                          <AlertTriangle className="h-3 w-3 stroke-[2.5px] animate-pulse" />
-                        </span>
-                      )}
                     </div>
 
                     {/* Events list inside cell */}
@@ -401,50 +424,16 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
           </div>
         </div>
 
-        {/* Side Panel: Information & Conflict Details */}
+        {/* Side Panel: Legend */}
         <div className="space-y-4">
-          
-          {/* Active Conflicts Widget */}
-          <div className="rounded-xl border border-rose-150 bg-rose-50/40 p-4 shadow-3xs space-y-3">
-            <div className="flex items-center space-x-2 border-b border-rose-100 pb-2 text-rose-800 font-bold text-xs uppercase tracking-wider">
-              <AlertTriangle className="h-4.5 w-4.5 text-rose-600 animate-pulse" />
-              <span>Conflitos de Prazos</span>
-            </div>
-
-            <p className="text-[10px] text-rose-700 leading-relaxed">
-              O sistema detectou inconsistências onde um servidor tem fases de auditoria em curso durante seu período de férias regulamentares.
-            </p>
-
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              {groupedConflicts.length === 0 ? (
-                <p className="text-center text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-3 font-semibold">
-                  ✓ Sem conflitos de prazos no calendário deste setor!
-                </p>
-              ) : (
-                groupedConflicts.map((c, idx) => (
-                  <div key={idx} className="rounded-lg bg-white border border-rose-100 p-2.5 text-[11px] text-slate-800 space-y-1">
-                    <p className="font-bold text-rose-900 leading-none">{c.auditor.split(' ')[0]}</p>
-                    <p className="text-gray-500 font-semibold leading-tight">Férias: {c.feriasPeriod}</p>
-                    <div className="border-t border-dashed border-rose-100 pt-1.5 mt-1 space-y-0.5">
-                      <p className="font-bold text-gray-800">Processo: {c.portaria}</p>
-                      <p className="text-gray-600">Fase: <strong className="text-slate-800">{c.fase}</strong></p>
-                      <p className="text-[9px] text-rose-700 font-bold bg-rose-50 px-1 rounded-sm inline-block">
-                        Conflito: {formatShowDate(c.start)} a {formatShowDate(c.end)}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
 
           {/* Quick instructions box */}
-          <div className="rounded-xl border border-gray-150 bg-white p-4 shadow-3xs space-y-2 text-xs text-gray-600">
-            <div className="flex items-center space-x-1.5 font-bold text-gray-700 uppercase tracking-wider pb-1.5 border-b border-gray-50">
-              <Info className="h-4.5 w-4.5 text-blue-600" />
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs space-y-2 text-xs text-gray-600">
+            <div className="flex items-center space-x-1.5 font-bold text-gray-700 uppercase tracking-wider pb-1.5 border-b border-gray-100">
+              <Info className="h-4 w-4 text-blue-600" />
               <span>Legenda do Calendário</span>
             </div>
-            
+
             <div className="space-y-2 pt-1 text-[11px]">
               <div className="flex items-center space-x-2">
                 <span className="inline-block h-3 w-5 rounded bg-blue-100 border border-blue-300" />
@@ -459,7 +448,7 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
                 <span>Férias de Servidores</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="inline-block h-3 w-5 rounded bg-slate-100 border border-slate-350" />
+                <span className="inline-block h-3 w-5 rounded bg-slate-100 border border-slate-300" />
                 <span>Fases Pendentes</span>
               </div>
             </div>
@@ -485,7 +474,7 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
                 {selectedEvent.title}
               </h3>
 
-              <div className="space-y-2 bg-slate-50 border border-gray-150 rounded-lg p-3">
+              <div className="space-y-2 bg-slate-50 border border-gray-200 rounded-lg p-3">
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div>
                     <span className="text-gray-400 block font-bold text-[9px] uppercase">Data Início:</span>
@@ -511,7 +500,7 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
                 <div className="space-y-1.5">
                   <p><strong>Servidor:</strong> {selectedEvent.meta.user.nome}</p>
                   <p><strong>Matrícula:</strong> {selectedEvent.meta.user.matricula}</p>
-                  <p><strong>Cargo:</strong> {selectedEvent.meta.user.cargo} ({selectedEvent.meta.user.codigoCargo})</p>
+                  <p><strong>Cargo:</strong> {selectedEvent.meta.user.cargo}</p>
                   <p><strong>Período Aquisitivo:</strong> {selectedEvent.meta.ferias.periodoAquisitivo}</p>
                   <p><strong>Parcela/Período:</strong> {selectedEvent.meta.ferias.parcela}</p>
                   <p><strong>Portaria de Férias:</strong> Nº {selectedEvent.meta.ferias.numeroPortariaFerias}</p>
@@ -523,10 +512,10 @@ export default function CalendarView({ currentUser, portarias, users }: Calendar
             </div>
 
             {/* Modal Footer */}
-            <div className="p-3 bg-slate-50 border-t border-gray-150 flex justify-end">
+            <div className="p-3 bg-slate-50 border-t border-gray-200 flex justify-end">
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="rounded-md border border-gray-250 bg-white px-4 py-1.5 text-xs font-semibold hover:bg-slate-50 text-gray-700"
+                className="rounded-md border border-gray-200 bg-white px-4 py-1.5 text-xs font-semibold hover:bg-slate-50 text-gray-700"
               >
                 Fechar
               </button>

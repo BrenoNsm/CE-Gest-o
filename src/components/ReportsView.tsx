@@ -19,8 +19,7 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  // Fixed system time representing June 12, 2026
-  const HOJE = '2026-06-12';
+  const HOJE = new Date().toISOString().slice(0, 10);
 
   // Sector Isolation of portarias (Cannot see other sectors' work!)
   const sectorPortarias = useMemo(() => {
@@ -112,19 +111,18 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
   let concluidoNoPrazo = 0;
   let concluidoComAtraso = 0;
   let totalConcluidas = 0;
-  let atrasadasNoMomento = 0;
-  
+  let ativasEmAtraso = 0;
+  let ativasNoPrazo = 0;
+
   sectorPortarias.forEach(p => {
     if (p.status === 'Concluída') {
       totalConcluidas++;
-      // If simulated completed in time or has no delays in phases
       if (p.concluidoNoPrazo !== false) {
         concluidoNoPrazo++;
       } else {
         concluidoComAtraso++;
       }
     } else if (p.status === 'Ativa') {
-      // Any active phase whose deadline is expired
       let over = false;
       p.cronograma.forEach(f => {
         if (f.status !== 'Concluída' && f.dataFim < HOJE) {
@@ -132,55 +130,83 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
         }
       });
       if (over) {
-        atrasadasNoMomento++;
+        ativasEmAtraso++;
+      } else {
+        ativasNoPrazo++;
       }
     }
   });
 
-  // CORREÇÃO: Calcular taxa considerando apenas as concluídas
-  // Se não houver concluídas, mostrar 0% ou N/A
-  const taxaConclusaoPrazo = totalConcluidas > 0 
-    ? Math.round((concluidoNoPrazo / totalConcluidas) * 100) 
+  const totalGeral = concluidoNoPrazo + concluidoComAtraso + ativasEmAtraso + ativasNoPrazo;
+  const taxaGeralPrazo = totalGeral > 0
+    ? Math.round(((concluidoNoPrazo + ativasNoPrazo) / totalGeral) * 100)
     : 0;
 
   return {
-    taxaConclusaoPrazo,
+    totalGeral,
     totalConcluidas,
     concluidoNoPrazo,
     concluidoComAtraso,
-    atrasadasNoMomento,
+    ativasEmAtraso,
+    ativasNoPrazo,
+    taxaGeralPrazo,
   };
 }, [sectorPortarias]);
 
+  // Chart data for Cumprimento de Prazos
+  const chartData = useMemo(() => [{
+    name: 'Geral',
+    concluidoNoPrazo: timingStatistics.concluidoNoPrazo,
+    concluidoComAtraso: timingStatistics.concluidoComAtraso,
+    ativasNoPrazo: timingStatistics.ativasNoPrazo,
+    ativasEmAtraso: timingStatistics.ativasEmAtraso,
+  }], [timingStatistics]);
+
   // Excel Exporter implementation with SheetJS (Actual file download!)
   const exportToExcel = () => {
-    if (reportResults.length === 0) {
-      alert("Nenhum dado disponível com os filtros atuais para exportação.");
-      return;
+    const workbook = XLSX.utils.book_new();
+
+    if (reportResults.length > 0) {
+      const wsData = reportResults.map(p => ({
+        'Número Portaria': p.numero,
+        'Tipo de Documento': p.tipo,
+        'Data Publicação': p.dataPublicacao,
+        'Período Início': p.dataInicioPeríodo,
+        'Período Fim': p.dataFimPeríodo,
+        'Fundamentação Legal': p.fundamentacao,
+        'Objetivo': p.objetivo,
+        'Status': p.status,
+        'Auditor Designado': p.auditorDesignado.nome,
+        'Matrícula Auditor': p.auditorDesignado.matricula,
+        'Qtd Municípios': p.unidadesJurisdicionadas.length,
+        'Supervisor Coordenador': p.supervisor.nome,
+        'Setor': p.sector
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Portarias " + currentUser.sector);
     }
 
-    const wsData = reportResults.map(p => ({
-      'Número Portaria': p.numero,
-      'Tipo de Documento': p.tipo,
-      'Data Publicação': p.dataPublicacao,
-      'Período Início': p.dataInicioPeríodo,
-      'Período Fim': p.dataFimPeríodo,
-      'Fundamentação Legal': p.fundamentacao,
-      'Objetivo': p.objetivo,
-      'Status': p.status,
-      'Auditor Designado': p.auditorDesignado.nome,
-      'Matrícula Auditor': p.auditorDesignado.matricula,
-      'Qtd Municípios': p.unidadesJurisdicionadas.length,
-      'Supervisor Coordenador': p.supervisor.nome,
-      'Setor': p.sector
-    }));
+    const statsData = [{
+      'Indicador': 'Concluídas no prazo',
+      'Quantidade': timingStatistics.concluidoNoPrazo,
+    }, {
+      'Indicador': 'Concluídas com atraso',
+      'Quantidade': timingStatistics.concluidoComAtraso,
+    }, {
+      'Indicador': 'Ativas em dia',
+      'Quantidade': timingStatistics.ativasNoPrazo,
+    }, {
+      'Indicador': 'Ativas em atraso',
+      'Quantidade': timingStatistics.ativasEmAtraso,
+    }, {
+      'Indicador': 'Total geral',
+      'Quantidade': timingStatistics.totalGeral,
+    }];
 
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(wsData);
-    
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Portarias " + currentUser.sector);
-    
-    // Auto adjust columns widths briefly
+    const statsSheet = XLSX.utils.json_to_sheet(statsData);
+    XLSX.utils.book_append_sheet(workbook, statsSheet, "Cumprimento de Prazos");
+
     XLSX.writeFile(workbook, `Relatorio_Portarias_TCERR_${currentUser.sector}.xlsx`);
   };
 
@@ -203,7 +229,7 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
     doc.text("TRIBUNAL DE CONTAS DO ESTADO DE RORAIMA", 15, 14);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`CONTRÔLE EXTERNO DE SISTEMA DE PORTARIAS - SETOR: ${currentUser.sector}`, 15, 20);
+    doc.text(`CONTROLE EXTERNO DE SISTEMA DE PORTARIAS - SETOR: ${currentUser.sector}`, 15, 20);
     doc.text(`EXERCÍCIO DE COORDENAÇÃO DE CONTAS - ${new Date().getFullYear()}`, 15, 25);
 
     // Margins and positions
@@ -273,6 +299,54 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
       
       y += 6.5;
     });
+
+    // Cumprimento de Prazos section
+    y += 10;
+    doc.setFillColor(241, 245, 249);
+    doc.rect(15, y, 180, 0.1, 'F');
+    y += 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Cumprimento de Prazos", 15, y);
+    y += 8;
+
+    const bars = [
+      { label: 'Concluídas\nno prazo', value: timingStatistics.concluidoNoPrazo, color: [16, 185, 129] },
+      { label: 'Concluídas\ncom atraso', value: timingStatistics.concluidoComAtraso, color: [245, 158, 11] },
+      { label: 'Ativas\nem dia', value: timingStatistics.ativasNoPrazo, color: [59, 130, 246] },
+      { label: 'Ativas\nem atraso', value: timingStatistics.ativasEmAtraso, color: [239, 68, 68] },
+    ];
+    const maxVal = Math.max(...bars.map(b => b.value), 1);
+    const chartX = 20;
+    const chartY = y;
+    const barWidth = 28;
+    const gap = 10;
+    const maxBarHeight = 50;
+
+    bars.forEach((b, i) => {
+      const x = chartX + i * (barWidth + gap);
+      const barH = maxVal > 0 ? (b.value / maxVal) * maxBarHeight : 0;
+      const barTop = chartY + maxBarHeight - barH;
+
+      // Draw bar
+      doc.setFillColor(b.color[0], b.color[1], b.color[2]);
+      doc.rect(x, barTop, barWidth, barH, 'F');
+
+      // Value on top
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.text(String(b.value), x + barWidth / 2, barTop - 2, { align: 'center' });
+
+      // Label below
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6);
+      const lines = b.label.split('\n');
+      lines.forEach((l, li) => {
+        doc.text(l, x + barWidth / 2, chartY + maxBarHeight + 4 + li * 4, { align: 'center' });
+      });
+    });
+
+    y += maxBarHeight + 28;
 
     // Signatures block at end
     if (y > 250) {
@@ -392,51 +466,57 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
             <TrendingUp className="h-4.5 w-4.5 text-blue-600" />
           </div>
 
-          {/* Performance Circle Gauge */}
-          <div className="flex flex-col items-center justify-center py-2">
-            <div className="relative flex items-center justify-center h-28 w-28 rounded-full border-4 border-slate-100">
-              {/* Dynamic simulated border */}
-              <div 
-                className={`absolute inset-0 rounded-full border-4 border-transparent ${
-                  timingStatistics.taxaConclusaoPrazo >= 85 ? 'border-t-emerald-500 border-r-emerald-500' :
-                  timingStatistics.taxaConclusaoPrazo >= 50 ? 'border-t-blue-500 border-r-blue-500' : 'border-t-red-500'
-                }`}
-              />
-              <div className="text-center">
-                <span className="text-3xl font-extrabold text-blue-950 font-mono">{timingStatistics.taxaConclusaoPrazo}%</span>
-                <span className="block text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-1">Adjacência</span>
-              </div>
-            </div>
-            <p className="mt-4 text-xs font-bold text-gray-800 text-center">Taxa de Cumprimento de Prazos</p>
-            <p className="text-[10px] text-gray-500 text-center leading-relaxed">Considerando auditorias e portarias plenárias arquivadas</p>
+          {/* Bar Chart - Visão Geral */}
+          <div className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 8, right: 4, left: -12, bottom: 4 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                  formatter={(value: number) => [value, 'Quantidade']}
+                />
+                <Bar dataKey="concluidoNoPrazo" name="Concluídas no Prazo" fill="#10b981" radius={2} />
+                <Bar dataKey="concluidoComAtraso" name="Concluídas com Atraso" fill="#f59e0b" radius={2} />
+                <Bar dataKey="ativasNoPrazo" name="Ativas em Dia" fill="#3b82f6" radius={2} />
+                <Bar dataKey="ativasEmAtraso" name="Ativas em Atraso" fill="#ef4444" radius={2} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Timing details list */}
-          <div className="space-y-2 border-t border-gray-50 pt-3">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-500 font-medium">Concluídas total:</span>
-              <span className="font-bold text-gray-800">{timingStatistics.totalConcluidas}</span>
+          <div className="space-y-1.5 border-t border-gray-50 pt-3 text-xs">
+            <div className="flex justify-between items-center py-0.5">
+              <span className="text-gray-500 font-medium">Total geral:</span>
+              <span className="font-bold text-gray-800">{timingStatistics.totalGeral}</span>
             </div>
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex justify-between items-center py-0.5">
               <span className="text-emerald-600 font-semibold flex items-center space-x-1">
                 <CheckCircle className="h-3 w-3" />
-                <span>Dentro do prazo:</span>
+                <span>Concluídas no prazo:</span>
               </span>
               <span className="font-bold text-emerald-700">{timingStatistics.concluidoNoPrazo}</span>
             </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-rose-600 font-semibold flex items-center space-x-1">
+            <div className="flex justify-between items-center py-0.5">
+              <span className="text-amber-600 font-semibold flex items-center space-x-1">
                 <Clock className="h-3 w-3" />
-                <span>Atraso verificado:</span>
+                <span>Concluídas com atraso:</span>
               </span>
-              <span className="font-bold text-rose-700">{timingStatistics.concluidoComAtraso}</span>
+              <span className="font-bold text-amber-700">{timingStatistics.concluidoComAtraso}</span>
             </div>
-            <div className="flex justify-between items-center text-xs pt-1.5 border-t border-dashed border-gray-100">
-              <span className="text-red-650 font-bold flex items-center space-x-1 animate-pulse">
-                <AlertTriangle className="h-3 w-3 text-red-500" />
-                <span>Atrasadas no momento:</span>
+            <div className="flex justify-between items-center py-0.5">
+              <span className="text-blue-600 font-semibold flex items-center space-x-1">
+                <CheckCircle className="h-3 w-3" />
+                <span>Ativas em dia:</span>
               </span>
-              <span className="font-bold text-red-700 font-mono">{timingStatistics.atrasadasNoMomento}</span>
+              <span className="font-bold text-blue-700">{timingStatistics.ativasNoPrazo}</span>
+            </div>
+            <div className="flex justify-between items-center py-0.5">
+              <span className="text-red-600 font-semibold flex items-center space-x-1">
+                <AlertTriangle className="h-3 w-3 text-red-500" />
+                <span>Ativas em atraso:</span>
+              </span>
+              <span className="font-bold text-red-700">{timingStatistics.ativasEmAtraso}</span>
             </div>
           </div>
         </div>

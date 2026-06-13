@@ -13,7 +13,6 @@ class FeriasSerializer(serializers.ModelSerializer):
     matriculaServidor = serializers.CharField(source='matricula_servidor')
     nomeServidor = serializers.CharField(source='nome_servidor')
     cargoServidor = serializers.CharField(source='cargo_servidor')
-    codigoCargoServidor = serializers.CharField(source='codigo_cargo_servidor')
     numeroPortariaFerias = serializers.CharField(source='numero_portaria_ferias')
     dataInicio = serializers.CharField(source='data_inicio')
     dataFim = serializers.CharField(source='data_fim')
@@ -24,21 +23,20 @@ class FeriasSerializer(serializers.ModelSerializer):
         model = Ferias
         fields = [
             'id', 'userId', 'matriculaServidor', 'nomeServidor', 'cargoServidor', 
-            'codigoCargoServidor', 'numeroPortariaFerias', 'dataInicio', 
+            'numeroPortariaFerias', 'dataInicio', 
             'dataFim', 'dias', 'periodoAquisitivo', 'parcela', 'dataCadastro'
         ]
 
 class UserSerializer(serializers.ModelSerializer):
     id = serializers.CharField()
-    codigoCargo = serializers.CharField(source='codigo_cargo', allow_null=True, required=False)
     avatarUrl = serializers.CharField(source='avatar_url', allow_null=True, required=False)
     ferias = FeriasSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 'matricula', 'nome', 'cargo', 'codigoCargo', 'sector', 
-            'email', 'role', 'avatarUrl', 'ferias'
+            'id', 'matricula', 'nome', 'cargo', 'sector', 
+            'email', 'avatarUrl', 'ferias'
         ]
 
 class FaseSerializer(serializers.ModelSerializer):

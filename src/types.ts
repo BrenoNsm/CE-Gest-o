@@ -2,17 +2,13 @@
  * Types and interfaces for the TCERR Portarias Management System
  */
 
-export type UserRole = 'Administrador' | 'Auditor' | 'Gestor';
-
 export interface User {
   id: string;
   matricula: string;
   nome: string;
   cargo: string;
-  codigoCargo?: string; // e.g. 'TC/AAD'
-  sector: string; // e.g. 'SEAMP', 'SECGE', 'SEFIS'
+  sector: string; // e.g. 'SEAMP', 'SECEX'
   email: string;
-  role: UserRole;
   avatarUrl?: string;
   ferias?: Ferias[];
 }
