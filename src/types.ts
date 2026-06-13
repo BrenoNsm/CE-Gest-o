@@ -114,6 +114,21 @@ export interface SetorConfig {
   corPrincipal: string; // HEX
 }
 
+export interface BoardNote {
+  id: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoardBlock {
+  id: string;
+  title: string;
+  color: string;
+  notes: BoardNote[];
+  createdAt: string;
+}
+
 export interface Ferias {
   id: string;
   matriculaServidor: string;

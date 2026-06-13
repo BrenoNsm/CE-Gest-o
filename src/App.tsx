@@ -10,6 +10,7 @@ import ReportsView from './components/ReportsView';
 import LogsView from './components/LogsView';
 import CalendarView from './components/CalendarView';
 import VacationsView from './components/VacationsView';
+import InfoBoardView from './components/InfoBoardView';
 // Icons
 import { Award, ShieldCheck, LogIn, Lock, User as UserIcon, Building2, HelpCircle, AlertOctagon } from 'lucide-react';
 
@@ -32,7 +33,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   // UI/Navigation States
-  const [activeView, setActiveView] = useState<'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard'>('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPortaria, setEditingPortaria] = useState<Portaria | null>(null);
   
@@ -443,6 +444,8 @@ export default function App() {
         return <CalendarView currentUser={currentUser} portarias={portarias} users={users} />;
       case 'vacations':
         return <VacationsView currentUser={currentUser} users={users} onAddVacation={handleAddVacation} onDeleteVacation={handleDeleteVacation} />;
+      case 'infoboard':
+        return <InfoBoardView currentUser={currentUser} />;
       default:
         return null;
     }

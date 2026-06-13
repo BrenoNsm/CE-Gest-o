@@ -1,11 +1,11 @@
 import React from 'react';
 import { User } from '../types';
-import { LayoutDashboard, FileText, BarChart3, History, ShieldAlert, Award, Clock, Calendar, Users } from 'lucide-react';
+import { LayoutDashboard, FileText, BarChart3, History, ShieldAlert, Award, Clock, Calendar, Users, Clipboard } from 'lucide-react';
 
 interface SidebarProps {
   currentUser: User;
-  activeView: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations';
-  setActiveView: (view: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations') => void;
+  activeView: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard';
+  setActiveView: (view: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard') => void;
 }
 
 export default function Sidebar({ currentUser, activeView, setActiveView }: SidebarProps) {
@@ -45,6 +45,12 @@ export default function Sidebar({ currentUser, activeView, setActiveView }: Side
       label: 'Histórico & Auditoria',
       icon: History,
       description: 'Logs de alteração e custódia'
+    },
+    {
+      id: 'infoboard',
+      label: 'Quadro de Informação',
+      icon: Clipboard,
+      description: 'Notas e blocos temáticos'
     }
   ] as const;
 
