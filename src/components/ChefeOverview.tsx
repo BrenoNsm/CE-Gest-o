@@ -9,19 +9,36 @@ interface ChefeOverviewProps {
   onSelectPortaria: (p: Portaria) => void;
 }
 
-const SETORES = [
-  { id: 'SEAMP', sigla: 'SEAMP', nome: 'Secretaria de Avaliação e Monitoramento de Políticas Públicas', corPrincipal: '#0284c7' },
-  { id: 'SECEX', sigla: 'SECEX', nome: 'Secretaria de Controle Externo', corPrincipal: '#1e3a8a' },
-];
+const SECTOR_CORES: Record<string, string> = {
+  SEAMP: '#0284c7',
+  SECEX: '#1e3a8a',
+  SELIC: '#7c3aed',
+};
+
+const SECTOR_NOMES: Record<string, string> = {
+  SEAMP: 'Secretaria de Avaliação e Monitoramento de Políticas Públicas',
+  SECEX: 'Secretaria de Controle Externo',
+  SELIC: 'Secretaria de Licitações e Contratos',
+};
 
 export default function ChefeOverview({ currentUser, portarias, users, onSelectPortaria }: ChefeOverviewProps) {
-  const [selectedSector, setSelectedSector] = useState(SETORES[0].id);
+  const setores = useMemo(() => {
+    const sectorIds = [...new Set(users.map(u => u.sector).filter(Boolean))];
+    return sectorIds.map(id => ({
+      id,
+      sigla: id,
+      nome: SECTOR_NOMES[id] || id,
+      corPrincipal: SECTOR_CORES[id] || '#6b7280',
+    }));
+  }, [users]);
+
+  const [selectedSector, setSelectedSector] = useState(setores[0]?.id || '');
   const HOJE = new Date().toISOString().slice(0, 10);
   const dataHoje = new Date(HOJE);
 
   const sectorConfig = useMemo(() => {
-    return SETORES.find(s => s.id === selectedSector) || SETORES[0];
-  }, [selectedSector]);
+    return setores.find(s => s.id === selectedSector) || setores[0] || { id: '', sigla: '', nome: '', corPrincipal: '#6b7280' };
+  }, [selectedSector, setores]);
 
   const sectorData = useMemo(() => {
     const s = sectorConfig;
@@ -120,7 +137,7 @@ export default function ChefeOverview({ currentUser, portarias, users, onSelectP
             onChange={e => setSelectedSector(e.target.value)}
             className="appearance-none rounded-lg border border-gray-200 bg-white pl-4 pr-10 py-2.5 text-sm font-semibold text-gray-800 shadow-xs focus:border-blue-600 focus:outline-hidden cursor-pointer"
           >
-            {SETORES.map(s => (
+            {setores.map(s => (
               <option key={s.id} value={s.id}>{s.sigla} — {s.nome}</option>
             ))}
           </select>

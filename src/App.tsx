@@ -38,6 +38,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral'>('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPortaria, setEditingPortaria] = useState<Portaria | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Cross-view notification handler
   const [selectedPortariaExternal, setSelectedPortariaExternal] = useState<Portaria | null>(null);
@@ -536,6 +537,8 @@ export default function App() {
           setIsFormOpen(false);
           setEditingPortaria(null);
         }}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       {/* Main Container Area */}
@@ -548,6 +551,7 @@ export default function App() {
           notifications={notifications}
           markNotificationAsRead={handleMarkNotification}
           markAllNotificationsAsRead={handleMarkAllNotifications}
+          onToggleSidebar={() => setSidebarOpen(prev => !prev)}
         />
 
         {/* Scrollable View Content area */}

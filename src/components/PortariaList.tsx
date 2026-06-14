@@ -317,10 +317,10 @@ export default function PortariaList({
               <thead>
                 <tr className="bg-slate-50 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-100">
                   <th className="p-3">Portaria</th>
-                  <th className="p-3">Objetivo / Descrição</th>
-                  <th className="p-3">Auditor Principal</th>
-                  <th className="p-3">Execução Fim</th>
-                  <th className="p-3">Fase Ativa</th>
+                  <th className="p-3 hidden sm:table-cell">Objetivo</th>
+                  <th className="p-3">Auditor</th>
+                  <th className="p-3 hidden sm:table-cell">Fim</th>
+                  <th className="p-3 hidden md:table-cell">Fase Ativa</th>
                   <th className="p-3">Status</th>
                   <th className="p-3 text-right">Ação</th>
                 </tr>
@@ -331,18 +331,18 @@ export default function PortariaList({
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="p-3 font-bold text-blue-900 font-mono">{p.numero}</td>
-                      <td className="p-3 max-w-xs">
+                      <td className="p-3 hidden sm:table-cell max-w-[160px]">
                         <span className="font-semibold text-gray-800 block truncate" title={p.objetivo}>
                           {p.objetivo}
                         </span>
                         <span className="text-[10px] text-gray-400 block truncate">{p.fundamentacao}</span>
                       </td>
                       <td className="p-3">
-                        <span className="font-semibold block">{p.auditorDesignado.nome}</span>
+                        <span className="font-semibold block truncate max-w-[120px]" title={p.auditorDesignado.nome}>{p.auditorDesignado.nome}</span>
                         <span className="text-[10px] text-gray-400 font-mono">Mat. {p.auditorDesignado.matricula}</span>
                       </td>
-                      <td className="p-3 font-mono">{new Date(p.dataFimPeríodo).toLocaleDateString('pt-BR')}</td>
-                      <td className="p-3 font-semibold text-blue-700">
+                      <td className="p-3 font-mono hidden sm:table-cell">{new Date(p.dataFimPeríodo).toLocaleDateString('pt-BR')}</td>
+                      <td className="p-3 font-semibold text-blue-700 hidden md:table-cell">
                         {active?.nome} ({percent}%)
                       </td>
                       <td className="p-3">

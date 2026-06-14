@@ -401,10 +401,10 @@ export default function DashboardView({ currentUser, portarias, onSelectPortaria
               <thead>
                 <tr className="border-b border-gray-100 text-[10px] uppercase font-bold text-gray-400">
                   <th className="py-2">Identificação</th>
-                  <th className="py-2">Auditor Responsável</th>
-                  <th className="py-2">Jurisdicionados (Qtd)</th>
-                  <th className="py-2">Fase Atual</th>
-                  <th className="py-2">Progresso Fases</th>
+                  <th className="py-2">Auditor</th>
+                  <th className="py-2 hidden sm:table-cell">Jurisdicionados</th>
+                  <th className="py-2 hidden md:table-cell">Fase Atual</th>
+                  <th className="py-2 hidden sm:table-cell">Progresso</th>
                   <th className="py-2 text-right">Ação</th>
                 </tr>
               </thead>
@@ -422,12 +422,12 @@ export default function DashboardView({ currentUser, portarias, onSelectPortaria
                         <span className="font-semibold text-gray-800 block">{p.auditorDesignado.nome}</span>
                         <span className="text-[9px] text-gray-400 font-mono">Mat. {p.auditorDesignado.matricula}</span>
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 hidden sm:table-cell">
                         <span className="inline-flex items-center rounded-xs bg-slate-50 border border-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
                           {p.unidadesJurisdicionadas.length} municípios
                         </span>
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 hidden md:table-cell">
                         <span className="inline-flex items-center space-x-1.5 rounded-sm bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800 border border-blue-100">
                           <Play className="h-2.5 w-2.5 text-blue-600 fill-blue-600 animate-pulse" />
                           <span>{p.faseAtual?.nome}</span>
@@ -436,8 +436,8 @@ export default function DashboardView({ currentUser, portarias, onSelectPortaria
                           Término em: {new Date(p.faseAtual?.dataFim || '').toLocaleDateString('pt-BR')}
                         </span>
                       </td>
-                      <td className="py-3">
-                        <div className="w-32">
+                      <td className="py-3 hidden sm:table-cell">
+                        <div className="w-24 sm:w-32">
                           <div className="flex items-center justify-between text-[10px] mb-0.5 text-gray-500">
                             <span>Estimado:</span>
                             <span className="font-bold text-gray-800">{p.percent}%</span>

@@ -299,8 +299,8 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
                         <th className="p-3">Servidor</th>
                         <th className="p-3">Portaria</th>
                         <th className="p-3">Período</th>
-                        <th className="p-3">Duração</th>
-                        <th className="p-3">Aquisitivo</th>
+                        <th className="p-3 hidden sm:table-cell">Duração</th>
+                        <th className="p-3 hidden sm:table-cell">Aquisitivo</th>
                         <th className="p-3 text-right">Ação</th>
                       </tr>
                     </thead>
@@ -315,12 +315,12 @@ export default function VacationsView({ currentUser, users, onAddVacation, onDel
                           <td className="p-3 font-mono">
                             {formatShowDate(f.dataInicio)} - {formatShowDate(f.dataFim)}
                           </td>
-                          <td className="p-3">
+                          <td className="p-3 hidden sm:table-cell">
                             <span className="rounded bg-amber-50 border border-amber-100 text-amber-800 font-semibold px-2 py-0.5 text-[10px]">
                               {f.dias} dias
                             </span>
                           </td>
-                          <td className="p-3 text-slate-500 font-medium">
+                          <td className="p-3 text-slate-500 font-medium hidden sm:table-cell">
                             {f.periodoAquisitivo} ({f.parcela.split(' ')[0]})
                           </td>
                           <td className="p-3 text-right space-x-1" onClick={e => e.stopPropagation()}>

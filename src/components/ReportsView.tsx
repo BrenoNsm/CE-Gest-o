@@ -623,9 +623,9 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
               <tr className="bg-slate-50 text-[10px] uppercase font-bold text-gray-400 border-b border-gray-150">
                 <th className="p-3">Designação</th>
                 <th className="p-3">Auditor</th>
-                <th className="p-3">Início</th>
-                <th className="p-3">Fim</th>
-                <th className="p-3">Municípios Relacionados</th>
+                <th className="p-3 hidden sm:table-cell">Início</th>
+                <th className="p-3 hidden sm:table-cell">Fim</th>
+                <th className="p-3 hidden md:table-cell">Municípios</th>
                 <th className="p-3">Status</th>
               </tr>
             </thead>
@@ -640,10 +640,10 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
                 reportResults.map(p => (
                   <tr key={p.id} className="hover:bg-slate-50/50">
                     <td className="p-3 font-semibold font-mono text-blue-900">{p.numero}</td>
-                    <td className="p-3 font-semibold">{p.auditorDesignado.nome}</td>
-                    <td className="p-3 font-mono">{p.dataInicioPeríodo}</td>
-                    <td className="p-3 font-mono">{p.dataFimPeríodo}</td>
-                    <td className="p-3">
+                    <td className="p-3 font-semibold truncate max-w-[120px]" title={p.auditorDesignado.nome}>{p.auditorDesignado.nome}</td>
+                    <td className="p-3 font-mono hidden sm:table-cell">{p.dataInicioPeríodo}</td>
+                    <td className="p-3 font-mono hidden sm:table-cell">{p.dataFimPeríodo}</td>
+                    <td className="p-3 hidden md:table-cell">
                       <span className="line-clamp-1" title={p.unidadesJurisdicionadas.join(', ')}>
                         {p.unidadesJurisdicionadas.length} cidades ({p.unidadesJurisdicionadas.map(m => m.replace('Prefeitura Municipal de ', '')).slice(0, 3).join(', ')}...)
                       </span>

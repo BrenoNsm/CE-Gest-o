@@ -77,20 +77,20 @@ export default function PortariaDetailDrawer({ currentUser, portaria: initialPor
       <div className="w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-200">
 
         {/* Header */}
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-blue-950 text-white">
-          <div className="space-y-0.5">
+        <div className="px-4 md:px-5 py-4 border-b border-gray-100 flex items-start gap-2 bg-blue-950 text-white">
+          <div className="min-w-0 flex-1 space-y-0.5">
             <span className="rounded-sm bg-blue-800 text-[10px] font-bold font-mono px-2 py-0.5 border border-blue-700 text-yellow-300">
               {portaria.numero}
             </span>
-            <h3 className="text-sm font-bold text-white truncate max-w-md">{portaria.objetivo}</h3>
+            <h3 className="text-xs md:text-sm font-bold text-white">{portaria.objetivo}</h3>
             <p className="text-[10px] text-blue-200">{portaria.tipo} &bull; Setor {portaria.sector}</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full bg-blue-900/40 p-2 text-white hover:bg-blue-900 hover:text-yellow-400 transition-colors"
+            className="shrink-0 rounded-full bg-blue-900/40 p-3 md:p-2 text-white hover:bg-blue-900 hover:text-yellow-400 transition-colors"
             title="Fechar Acompanhamento"
           >
-            <X className="h-5 w-5" />
+            <X className="h-6 w-6 md:h-5 md:w-5" />
           </button>
         </div>
 

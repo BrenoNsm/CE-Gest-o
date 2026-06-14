@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, SystemNotification } from '../types';
-import { LogOut, Bell, Check } from 'lucide-react';
+import { LogOut, Bell, Check, Menu } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: User;
@@ -8,6 +8,7 @@ interface HeaderProps {
   notifications: SystemNotification[];
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
+  onToggleSidebar: () => void;
 }
 
 export default function Header({
@@ -16,6 +17,7 @@ export default function Header({
   notifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  onToggleSidebar,
 }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<SystemNotification | null>(null);
@@ -35,9 +37,18 @@ export default function Header({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center border-b border-gray-100 bg-white px-6 shadow-xs">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center border-b border-gray-100 bg-white px-4 md:px-6 shadow-xs">
+      {/* Hamburger (mobile only) */}
+      <button
+        onClick={onToggleSidebar}
+        className="lg:hidden rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors mr-2"
+        aria-label="Abrir menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       {/* Right Actions */}
-      <div className="flex items-center space-x-4 ml-auto">
+      <div className="flex items-center space-x-3 md:space-x-4 ml-auto">
         {/* Notifications Icon and Dropdown */}
         <div className="relative">
           <button
