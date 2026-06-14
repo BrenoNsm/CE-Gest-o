@@ -11,6 +11,7 @@ import LogsView from './components/LogsView';
 import CalendarView from './components/CalendarView';
 import VacationsView from './components/VacationsView';
 import InfoBoardView from './components/InfoBoardView';
+import ChefeOverview from './components/ChefeOverview';
 // Icons
 import { Award, ShieldCheck, LogIn, Lock, User as UserIcon, Building2, HelpCircle, AlertOctagon } from 'lucide-react';
 
@@ -33,7 +34,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   // UI/Navigation States
-  const [activeView, setActiveView] = useState<'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral'>('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPortaria, setEditingPortaria] = useState<Portaria | null>(null);
   
@@ -83,34 +84,22 @@ export default function App() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    
-    if (!matriculaInput.trim()) {
-      setLoginError('Informe a matrícula funcional.');
-      return;
-    }
 
     try {
-      // Buscar usuário da API
-      const res = await fetch(`/api/users/?matricula=${matriculaInput.trim()}`);
+      const res = await fetch('/api/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matricula: matriculaInput.trim(), password: senhaInput }),
+      });
+
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error('Matrícula funcional não localizada no cadastro.');
-      }
-      
-      const foundUsers = await res.json();
-      if (foundUsers.length === 0) {
-        setLoginError('Matrícula funcional não localizada no cadastro.');
+        setLoginError(data.error || 'Erro ao autenticar.');
         return;
       }
 
-      const foundUser = foundUsers[0];
-      
-      // Verificar senha (em produção, isso seria feito via autenticação JWT/session)
-      if (senhaInput && senhaInput !== 'admin123') { // Senha padrão para teste
-        setLoginError('Senha incorreta.');
-        return;
-      }
-
-      setCurrentUser(foundUser);
+      setCurrentUser(data);
       setMatriculaInput('');
       setSenhaInput('');
     } catch (err: any) {
@@ -429,6 +418,8 @@ export default function App() {
   const renderMainContent = () => {
     if (!currentUser) return null;
     switch (activeView) {
+      case 'visaogeral':
+        return <ChefeOverview currentUser={currentUser} portarias={portarias} users={users} onSelectPortaria={handleNavigateToPortariaDetail} />;
       case 'dashboard':
         return <DashboardView currentUser={currentUser} portarias={portarias} onSelectPortaria={handleNavigateToPortariaDetail} />;
       case 'portarias':

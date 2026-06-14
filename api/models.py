@@ -1,25 +1,41 @@
 from django.db import models
+from django.contrib.auth.hashers import make_password, check_password
+
+
+class Cargo(models.Model):
+    id = models.CharField(max_length=50, primary_key=True)
+    nome = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.nome
+
+
+class Setor(models.Model):
+    id = models.CharField(max_length=50, primary_key=True)
+    nome = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.nome
+
 
 class User(models.Model):
+    id = models.CharField(max_length=50, primary_key=True)
     matricula = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=255)
     
-    CARGO_CHOICES = [
-        ('Assessor Administrativo I', 'Assessor Administrativo I'),
-        ('Assessor Administrativo II', 'Assessor Administrativo II'),
-        ('Assessor Tecnico de Controle Externo', 'Assessor Tecnico de Controle Externo'),
-        ('Auditor de Controle Externo', 'Auditor de Controle Externo'),
-    ]
-    cargo = models.CharField(max_length=255, choices=CARGO_CHOICES)
-    
-    SECTOR_CHOICES = [
-        ('SEAMP', 'SEAMP'),
-        ('SECEX', 'SECEX'),
-    ]
-    sector = models.CharField(max_length=50, choices=SECTOR_CHOICES)
+    cargo = models.CharField(max_length=255)
+    sector = models.CharField(max_length=50)
     
     email = models.CharField(max_length=255)
+    password = models.CharField(max_length=128, default='')
     avatar_url = models.CharField(max_length=500, blank=True, null=True)
+    is_admin = models.BooleanField(default=False)
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
 
     def __str__(self):
         return f"{self.nome} ({self.matricula})"

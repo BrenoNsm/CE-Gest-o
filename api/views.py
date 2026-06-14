@@ -1,11 +1,11 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.db import transaction
 from django.utils import timezone
-from .models import User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
+from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
 from .serializers import (
-    UserSerializer, FeriasSerializer, PortariaSerializer, 
+    CargoSerializer, SetorSerializer, UserSerializer, FeriasSerializer, PortariaSerializer, 
     AuditLogSerializer, LogExcluidoSerializer, SystemNotificationSerializer
 )
 import uuid
@@ -17,7 +17,45 @@ def generate_id(prefix='id'):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().prefetch_related('ferias')
     serializer_class = UserSerializer
-    lookup_field = 'id' # Usa o ID string em vez do padrão integer
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        matricula = self.request.query_params.get('matricula')
+        if matricula:
+            qs = qs.filter(matricula=matricula)
+        return qs
+
+@api_view(['POST'])
+def login(request):
+    matricula = request.data.get('matricula', '').strip()
+    password = request.data.get('password', '')
+
+    if not matricula:
+        return Response({'error': 'Informe a matrícula funcional.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(matricula=matricula)
+    except User.DoesNotExist:
+        return Response({'error': 'Matrícula funcional não localizada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not password:
+        return Response({'error': 'Informe a senha de acesso.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not user.check_password(password):
+        return Response({'error': 'Senha incorreta.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(UserSerializer(user).data)
+
+class CargoViewSet(viewsets.ModelViewSet):
+    queryset = Cargo.objects.all()
+    serializer_class = CargoSerializer
+    lookup_field = 'id'
+
+class SetorViewSet(viewsets.ModelViewSet):
+    queryset = Setor.objects.all()
+    serializer_class = SetorSerializer
+    lookup_field = 'id'
 
 class FeriasViewSet(viewsets.GenericViewSet):
     # Apenas Create e Destroy, conforme o backend original

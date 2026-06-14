@@ -11,6 +11,7 @@ export interface User {
   email: string;
   avatarUrl?: string;
   ferias?: Ferias[];
+  isAdmin?: boolean; // Chefe do Controle Externo / Administrador
 }
 
 export interface Fase {

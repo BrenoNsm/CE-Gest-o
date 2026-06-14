@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from api.models import User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
+from api.models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
 
 class Command(BaseCommand):
     help = 'Semeia o banco de dados com dados de teste do TCERR (Apenas para Desenvolvimento)'
@@ -14,21 +14,38 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('🌱 Iniciando seed de dados de teste do TCERR...'))
 
         with transaction.atomic():
+            # 0. Seed de Cargos e Setores (referências)
+            cargos_nomes = [
+                'Assessor Administrativo I', 'Assessor Administrativo II',
+                'Assessor Tecnico de Controle Externo', 'Auditor de Controle Externo',
+                'Chefe do Controle Externo', 'Secretária da SEAMP', 'Secretário da SECEX',
+            ]
+            for i, nome in enumerate(cargos_nomes):
+                Cargo.objects.create(id=f'cargo-{i+1}', nome=nome)
+
+            setores_nomes = ['SEAMP', 'SECEX']
+            for i, nome in enumerate(setores_nomes):
+                Setor.objects.create(id=f'setor-{i+1}', nome=nome)
+
             # 1. Seed de Usuários
             users_data = [
+                # Chefe do Controle Externo
+                {'id': 'usr-00001-0', 'matricula': '00001-0', 'nome': 'Dr. Ricardo Almeida dos Santos', 'cargo': 'Chefe do Controle Externo', 'sector': 'SECEX', 'email': 'ra.santos@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', 'is_admin': True},
                 # SEAMP
-                {'matricula': '10020-3', 'nome': 'Valdélia Vieira dos Santos Lena', 'cargo': 'Assessor Administrativo I', 'sector': 'SEAMP', 'email': 'vd.lena@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'},
-                {'matricula': '20150-1', 'nome': 'Carlos Heider da Silva Souza', 'cargo': 'Auditor de Controle Externo', 'sector': 'SEAMP', 'email': 'ch.souza@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150'},
-                {'matricula': '20155-2', 'nome': 'Renata Vasconcelos de Alencar', 'cargo': 'Auditor de Controle Externo', 'sector': 'SEAMP', 'email': 'rv.alencar@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150'},
-                {'matricula': '30040-5', 'nome': 'Marcelo Lima de Castro', 'cargo': 'Assessor Tecnico de Controle Externo', 'sector': 'SEAMP', 'email': 'ml.castro@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150'},
+                {'id': 'usr-10020-3', 'matricula': '10020-3', 'nome': 'Valdélia Vieira dos Santos Lena', 'cargo': 'Secretária da SEAMP', 'sector': 'SEAMP', 'email': 'vd.lena@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'},
+                {'id': 'usr-20150-1', 'matricula': '20150-1', 'nome': 'Carlos Heider da Silva Souza', 'cargo': 'Auditor de Controle Externo', 'sector': 'SEAMP', 'email': 'ch.souza@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150'},
+                {'id': 'usr-20155-2', 'matricula': '20155-2', 'nome': 'Renata Vasconcelos de Alencar', 'cargo': 'Auditor de Controle Externo', 'sector': 'SEAMP', 'email': 'rv.alencar@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150'},
+                {'id': 'usr-30040-5', 'matricula': '30040-5', 'nome': 'Marcelo Lima de Castro', 'cargo': 'Assessor Tecnico de Controle Externo', 'sector': 'SEAMP', 'email': 'ml.castro@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150'},
                 # SECEX
-                {'matricula': '10010-0', 'nome': 'Dr. Roberto Mendes Albuquerque', 'cargo': 'Assessor Administrativo II', 'sector': 'SECEX', 'email': 'rm.albuquerque@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150'},
-                {'matricula': '20240-8', 'nome': 'Patrícia Helena de Souza', 'cargo': 'Auditor de Controle Externo', 'sector': 'SECEX', 'email': 'ph.souza@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'},
+                {'id': 'usr-10010-0', 'matricula': '10010-0', 'nome': 'Dr. Roberto Mendes Albuquerque', 'cargo': 'Secretário da SECEX', 'sector': 'SECEX', 'email': 'rm.albuquerque@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150'},
+                {'id': 'usr-20240-8', 'matricula': '20240-8', 'nome': 'Patrícia Helena de Souza', 'cargo': 'Auditor de Controle Externo', 'sector': 'SECEX', 'email': 'ph.souza@tcerr.tc.br', 'avatar_url': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'},
             ]
             
             created_users = []
             for u_data in users_data:
-                user = User.objects.create(**u_data)
+                user = User(**u_data)
+                user.set_password('123456')
+                user.save()
                 created_users.append(user)
             
             self.stdout.write(self.style.SUCCESS(f'✅ {len(created_users)} usuários criados.'))

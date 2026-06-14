@@ -1,10 +1,24 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
+from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
 
 # -----------------------------------------------------------------------------
 # 1. Serializers Simples e Aninhados
 # -----------------------------------------------------------------------------
+
+class CargoSerializer(serializers.ModelSerializer):
+    id = serializers.CharField()
+
+    class Meta:
+        model = Cargo
+        fields = ['id', 'nome']
+
+class SetorSerializer(serializers.ModelSerializer):
+    id = serializers.CharField()
+
+    class Meta:
+        model = Setor
+        fields = ['id', 'nome']
 
 class FeriasSerializer(serializers.ModelSerializer):
     id = serializers.CharField()
@@ -30,14 +44,33 @@ class FeriasSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     id = serializers.CharField()
     avatarUrl = serializers.CharField(source='avatar_url', allow_null=True, required=False)
+    isAdmin = serializers.BooleanField(source='is_admin', required=False)
+    password = serializers.CharField(write_only=True, required=False)
     ferias = FeriasSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'matricula', 'nome', 'cargo', 'sector', 
-            'email', 'avatarUrl', 'ferias'
+            'email', 'password', 'avatarUrl', 'isAdmin', 'ferias'
         ]
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        user = User.objects.create(**validated_data)
+        if password:
+            user.set_password(password)
+            user.save(update_fields=['password'])
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 
 class FaseSerializer(serializers.ModelSerializer):
     id = serializers.CharField()

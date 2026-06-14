@@ -32,7 +32,7 @@ export const KEY_USERS: User[] = [
     id: 'usr-1',
     matricula: '10020-3',
     nome: 'Valdélia Vieira dos Santos Lena',
-    cargo: 'Assessor Administrativo I',
+    cargo: 'Secretária da SEAMP',
     sector: 'SEAMP',
     email: 'vd.lena@tcerr.tc.br',
     avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'
@@ -69,7 +69,7 @@ export const KEY_USERS: User[] = [
     id: 'usr-5',
     matricula: '10010-0',
     nome: 'Dr. Roberto Mendes Albuquerque',
-    cargo: 'Assessor Administrativo II',
+    cargo: 'Secretário da SECEX',
     sector: 'SECEX',
     email: 'rm.albuquerque@tcerr.tc.br',
     avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150'

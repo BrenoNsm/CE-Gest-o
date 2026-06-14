@@ -1,15 +1,58 @@
+from django import forms
 from django.contrib import admin
-from .models import User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
+from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
+
+@admin.register(Cargo)
+class CargoAdmin(admin.ModelAdmin):
+    list_display = ('nome',)
+    search_fields = ('nome',)
+
+@admin.register(Setor)
+class SetorAdmin(admin.ModelAdmin):
+    list_display = ('nome',)
+    search_fields = ('nome',)
+
+class UserAdminForm(forms.ModelForm):
+    cargo = forms.ChoiceField(choices=[])
+    sector = forms.ChoiceField(choices=[])
+    password = forms.CharField(
+        widget=forms.PasswordInput(render_value=True), required=False,
+        label='Senha', help_text='Deixe em branco para manter a senha atual.'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['cargo'].choices = [
+            (c.nome, c.nome) for c in Cargo.objects.all()
+        ]
+        self.fields['sector'].choices = [
+            (s.nome, s.nome) for s in Setor.objects.all()
+        ]
+        if self.instance and self.instance.pk and self.instance.password:
+            self.fields['password'].required = False
+            self.fields['password'].help_text = 'Deixe em branco para manter a senha atual.'
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get('password')
+        if password:
+            user.set_password(password)
+        if commit:
+            user.save()
+        return user
+
+    class Meta:
+        model = User
+        fields = '__all__'
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    # Removido 'role' de list_display e list_filter
+    form = UserAdminForm
     list_display = ('matricula', 'nome', 'cargo', 'sector', 'email')
     list_filter = ('sector',)
     search_fields = ('matricula', 'nome', 'email')
     ordering = ('nome',)
     
-    # Campos organizados em seções - Removido 'role' e 'avatar_url'
     fieldsets = (
         ('Identificação', {
             'fields': ('matricula',)
@@ -19,6 +62,9 @@ class UserAdmin(admin.ModelAdmin):
         }),
         ('Informações Profissionais', {
             'fields': ('cargo', 'sector')
+        }),
+        ('Segurança', {
+            'fields': ('password',),
         }),
     )
 

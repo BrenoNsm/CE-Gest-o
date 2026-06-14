@@ -1,15 +1,21 @@
 import React from 'react';
 import { User } from '../types';
-import { LayoutDashboard, FileText, BarChart3, History, ShieldAlert, Award, Clock, Calendar, Users, Clipboard } from 'lucide-react';
+import { LayoutDashboard, FileText, BarChart3, History, ShieldAlert, Award, Clock, Calendar, Users, Clipboard, Eye } from 'lucide-react';
 
 interface SidebarProps {
   currentUser: User;
-  activeView: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard';
-  setActiveView: (view: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard') => void;
+  activeView: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral';
+  setActiveView: (view: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral') => void;
 }
 
 export default function Sidebar({ currentUser, activeView, setActiveView }: SidebarProps) {
   const menuItems = [
+    ...(currentUser.isAdmin ? [{
+      id: 'visaogeral' as const,
+      label: 'Visão Geral do Controle Externo',
+      icon: Eye,
+      description: 'Acompanhamento de todas as unidades'
+    }] : []),
     {
       id: 'dashboard',
       label: 'Painel Geral',
