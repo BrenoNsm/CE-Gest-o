@@ -3,10 +3,11 @@ from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.db import transaction
 from django.utils import timezone
-from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
+from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification, BoardBlock, BoardNote
 from .serializers import (
     CargoSerializer, SetorSerializer, UserSerializer, FeriasSerializer, PortariaSerializer, 
-    AuditLogSerializer, LogExcluidoSerializer, SystemNotificationSerializer
+    AuditLogSerializer, LogExcluidoSerializer, SystemNotificationSerializer,
+    BoardBlockSerializer, BoardNoteSerializer,
 )
 import uuid
 
@@ -161,3 +162,29 @@ class SystemNotificationViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BoardBlockViewSet(viewsets.ModelViewSet):
+    queryset = BoardBlock.objects.all().prefetch_related('notes').order_by('created_at')
+    serializer_class = BoardBlockSerializer
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        sector = self.request.query_params.get('sector')
+        if sector:
+            qs = qs.filter(sector=sector)
+        return qs
+
+
+class BoardNoteViewSet(viewsets.ModelViewSet):
+    queryset = BoardNote.objects.all()
+    serializer_class = BoardNoteSerializer
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        block = self.request.query_params.get('block')
+        if block:
+            qs = qs.filter(block_id=block)
+        return qs

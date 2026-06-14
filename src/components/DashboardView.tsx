@@ -11,8 +11,7 @@ interface DashboardViewProps {
 }
 
 export default function DashboardView({ currentUser, portarias, onSelectPortaria }: DashboardViewProps) {
-  // Current Date fixed as June 12, 2026 based on metadata
-  const HOJE = '2026-06-12';
+  const HOJE = new Date().toISOString().slice(0, 10);
   const dataHoje = new Date(HOJE);
 
   // Filter portarias of CURRENT sector only as requested by organizational policy

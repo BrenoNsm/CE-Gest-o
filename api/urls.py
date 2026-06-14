@@ -11,6 +11,8 @@ router.register(r'portarias', views.PortariaViewSet, basename='portaria')
 router.register(r'logs', views.AuditLogViewSet, basename='auditlog')
 router.register(r'logs-excluidos', views.LogExcluidoViewSet, basename='logexcluido')
 router.register(r'notifications', views.SystemNotificationViewSet, basename='notification')
+router.register(r'board-blocks', views.BoardBlockViewSet, basename='boardblock')
+router.register(r'board-notes', views.BoardNoteViewSet, basename='boardnote')
 
 urlpatterns = [
     path('login/', views.login, name='login'),

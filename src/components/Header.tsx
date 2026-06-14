@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, SystemNotification } from '../types';
-import { LogOut, Bell, Shield, HelpCircle, Search, Check, Globe } from 'lucide-react';
+import { LogOut, Bell, Check } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: User;
@@ -8,8 +8,6 @@ interface HeaderProps {
   notifications: SystemNotification[];
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
 }
 
 export default function Header({
@@ -18,8 +16,6 @@ export default function Header({
   notifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  searchTerm,
-  setSearchTerm
 }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<SystemNotification | null>(null);
@@ -39,21 +35,9 @@ export default function Header({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-gray-100 bg-white px-6 shadow-xs">
-      {/* Search Bar */}
-      <div className="relative flex w-96 max-w-xs sm:max-w-md items-center">
-        <Search className="absolute left-3 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Busca por Nº, Auditor, Unidade..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="h-9 w-full rounded-md border border-gray-200 pl-9 pr-4 text-sm font-sans focus:border-blue-600 focus:outline-hidden transition-colors"
-        />
-      </div>
-
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center border-b border-gray-100 bg-white px-6 shadow-xs">
       {/* Right Actions */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 ml-auto">
         {/* Notifications Icon and Dropdown */}
         <div className="relative">
           <button

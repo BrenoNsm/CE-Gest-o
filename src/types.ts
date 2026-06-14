@@ -12,6 +12,7 @@ export interface User {
   avatarUrl?: string;
   ferias?: Ferias[];
   isAdmin?: boolean; // Chefe do Controle Externo / Administrador
+  isSecretary?: boolean; // Secretário(a) do setor
 }
 
 export interface Fase {
@@ -128,6 +129,7 @@ export interface BoardBlock {
   color: string;
   notes: BoardNote[];
   createdAt: string;
+  sector: string;
 }
 
 export interface Ferias {
@@ -135,7 +137,7 @@ export interface Ferias {
   matriculaServidor: string;
   nomeServidor: string;
   cargoServidor: string;
-  codigoCargoServidor: string;
+  codigoCargoServidor?: string;
   numeroPortariaFerias: string; // e.g. '917/2026/TCERR'
   dataInicio: string; // YYYY-MM-DD
   dataFim: string; // YYYY-MM-DD

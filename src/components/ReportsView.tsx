@@ -210,8 +210,24 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
     XLSX.writeFile(workbook, `Relatorio_Portarias_TCERR_${currentUser.sector}.xlsx`);
   };
 
-  // jsPDF Exporter implementing realistic professional layout with TCE branding
-  const exportToPDF = () => {
+  const getLogoData = async (): Promise<string | null> => {
+    try {
+      const res = await fetch('/logo.png');
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  // jsPDF Exporter
+  const exportToPDF = async () => {
     if (reportResults.length === 0) {
       alert("Nenhum dado disponível para compilar PDF.");
       return;
@@ -219,18 +235,23 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
 
     const doc = new jsPDF();
     
-    // Header Logo emblem simulation
-    doc.setFillColor(30, 41, 59); // Deep dark blue / slate code
+    // Header
+    doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, 210, 32, 'F');
+
+    const logoData = await getLogoData();
+    if (logoData) {
+      doc.addImage(logoData, "PNG", 15, 12, 28, 12);
+    }
     
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text("TRIBUNAL DE CONTAS DO ESTADO DE RORAIMA", 15, 14);
+    doc.text("TRIBUNAL DE CONTAS DO ESTADO DE RORAIMA", 48, 14);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`CONTROLE EXTERNO DE SISTEMA DE PORTARIAS - SETOR: ${currentUser.sector}`, 15, 20);
-    doc.text(`EXERCÍCIO DE COORDENAÇÃO DE CONTAS - ${new Date().getFullYear()}`, 15, 25);
+    doc.text(`CONTROLE EXTERNO DE SISTEMA DE PORTARIAS - SETOR: ${currentUser.sector}`, 48, 20);
+    doc.text(`EXERCÍCIO DE COORDENAÇÃO DE CONTAS - ${new Date().getFullYear()}`, 48, 25);
 
     // Margins and positions
     let y = 42;
@@ -270,8 +291,8 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
         doc.rect(0, 0, 210, 15, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.text("TCERR - Continuação de Relatório de Portarias", 15, 10);
+        doc.setFontSize(8);
+        doc.text("TCERR - Relatório de Portarias (cont.)", 32, 10);
         y += 8;
         doc.setFont("helvetica", "normal");
         doc.setTextColor(0, 0, 0);
@@ -348,20 +369,18 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
 
     y += maxBarHeight + 28;
 
-    // Signatures block at end
+    // Footer line
     if (y > 250) {
       doc.addPage();
       y = 30;
     } else {
-      y += 18;
+      y += 12;
     }
 
     doc.setFont("helvetica", "bold");
-    doc.text("Valdélia Vieira dos Santos Lena", 65, y);
-    doc.setFont("helvetica", "normal");
-    doc.text("Gestora e Secretária Interina da SEAMP / TCERR", 55, y + 4.5);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')} sob sigilo funcional`, 48, y + 15);
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')} pelo CRONOS - Sistema de Gestão de Portarias TCERR`, 48, y);
 
     doc.save(`TCE_Roraima_Relatorio_Portarias_${currentUser.sector}.pdf`);
   };

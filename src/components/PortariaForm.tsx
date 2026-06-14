@@ -171,6 +171,10 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
       alert("Por favor, escreva o Objetivo da Fiscalização.");
       return;
     }
+    if (!fundamentacao.trim()) {
+      alert("Por favor, preencha a Fundamentação Legal.");
+      return;
+    }
     if (unidades.length === 0) {
       alert("Por favor, selecione pelo menos uma Unidade Jurisdicionada.");
       return;
@@ -346,6 +350,7 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
               <label className="block text-xs font-semibold text-gray-700 mb-1">Fundamentação Legal (Embargo/Normativa)</label>
               <input
                 type="text"
+                required
                 placeholder="Ex: Resolução Ad Referendum nº 04/2026-TCERR-PLENO PAF 2025"
                 value={fundamentacao}
                 onChange={(e) => setFundamentacao(e.target.value)}

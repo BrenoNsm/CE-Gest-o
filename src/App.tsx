@@ -12,6 +12,7 @@ import CalendarView from './components/CalendarView';
 import VacationsView from './components/VacationsView';
 import InfoBoardView from './components/InfoBoardView';
 import ChefeOverview from './components/ChefeOverview';
+import PortariaDetailDrawer from './components/PortariaDetailDrawer';
 // Icons
 import { Award, ShieldCheck, LogIn, Lock, User as UserIcon, Building2, HelpCircle, AlertOctagon } from 'lucide-react';
 
@@ -41,8 +42,7 @@ export default function App() {
   // Cross-view notification handler
   const [selectedPortariaExternal, setSelectedPortariaExternal] = useState<Portaria | null>(null);
   
-  // Global search query
-  const [searchTerm, setSearchTerm] = useState('');
+
 
   // Sincronizador da sessão local
   useEffect(() => {
@@ -412,7 +412,6 @@ export default function App() {
 
   const handleNavigateToPortariaDetail = (p: Portaria) => {
     setSelectedPortariaExternal(p);
-    setActiveView('portarias');
   };
 
   const renderMainContent = () => {
@@ -426,7 +425,7 @@ export default function App() {
         if (isFormOpen) {
           return <PortariaForm currentUser={currentUser} users={users} editingPortaria={editingPortaria} onSave={handleSavePortaria} onCancel={() => { setIsFormOpen(false); setEditingPortaria(null); }} />;
         }
-        return <PortariaList currentUser={currentUser} portarias={portarias} searchTerm={searchTerm} onEdit={(p) => { setEditingPortaria(p); setIsFormOpen(true); }} onDelete={handleDeletePortaria} onUpdatePortaria={handleUpdatePortariaInline} onAddNewClick={() => { setEditingPortaria(null); setIsFormOpen(true); }} selectedPortariaExternal={selectedPortariaExternal} setSelectedPortariaExternal={setSelectedPortariaExternal} />;
+        return <PortariaList currentUser={currentUser} portarias={portarias} onEdit={(p) => { setEditingPortaria(p); setIsFormOpen(true); }} onDelete={handleDeletePortaria} onUpdatePortaria={handleUpdatePortariaInline} onAddNewClick={() => { setEditingPortaria(null); setIsFormOpen(true); }} selectedPortariaExternal={selectedPortariaExternal} setSelectedPortariaExternal={setSelectedPortariaExternal} />;
       case 'relatorios':
         return <ReportsView currentUser={currentUser} portarias={portarias} />;
       case 'logs':
@@ -521,6 +520,10 @@ export default function App() {
     );
   }
 
+  const handleCloseGlobalDrawer = () => {
+    setSelectedPortariaExternal(null);
+  };
+
   // Full-featured Authenticated UI Shell
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-50/50 font-sans">
@@ -545,8 +548,6 @@ export default function App() {
           notifications={notifications}
           markNotificationAsRead={handleMarkNotification}
           markAllNotificationsAsRead={handleMarkAllNotifications}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
         />
 
         {/* Scrollable View Content area */}
@@ -561,6 +562,16 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* Global portaria drawer for views other than portarias */}
+      {selectedPortariaExternal && (
+        <PortariaDetailDrawer
+          currentUser={currentUser}
+          portaria={selectedPortariaExternal}
+          onClose={handleCloseGlobalDrawer}
+          onUpdatePortaria={handleUpdatePortariaInline}
+        />
+      )}
     </div>
   );
 }

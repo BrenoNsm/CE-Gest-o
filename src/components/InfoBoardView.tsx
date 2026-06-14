@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, BoardBlock, BoardNote } from '../types';
 import { Plus, Trash2, Edit3, X, Check, Palette, Bold, List, ListOrdered, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 
@@ -23,25 +23,6 @@ const HEADER_COLORS: Record<string, string> = {
   'border-cyan-500': 'bg-cyan-600',
   'border-orange-500': 'bg-orange-600',
 };
-
-const STORAGE_KEY = 'cronos_infoboard';
-
-function loadBlocks(): BoardBlock[] {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveBlocks(blocks: BoardBlock[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks));
-}
-
-function generateId(): string {
-  return 'block-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-}
 
 interface InfoBoardViewProps {
   currentUser: User;
@@ -86,47 +67,106 @@ function sanitizeHtml(html: string): string {
 }
 
 export default function InfoBoardView({ currentUser }: InfoBoardViewProps) {
-  const [blocks, setBlocks] = useState<BoardBlock[]>(loadBlocks);
+  const [blocks, setBlocks] = useState<BoardBlock[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showNewBlockForm, setShowNewBlockForm] = useState(false);
   const [newBlockTitle, setNewBlockTitle] = useState('');
   const [newBlockColor, setNewBlockColor] = useState(BLOCK_COLORS[0].value);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [editingBlockTitle, setEditingBlockTitle] = useState('');
-  const [newNoteContent, setNewNoteContent] = useState<Record<string, string>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteContent, setEditingNoteContent] = useState('');
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
-  const [activeBlockInput, setActiveBlockInput] = useState<string | null>(null);
 
   const editRef = useRef<HTMLDivElement>(null);
-  const inputRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const inputRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const loadBlocks = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/board-blocks/?sector=${currentUser.sector}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length === 0) {
+          const saved = localStorage.getItem('cronos_infoboard');
+          if (saved) {
+            try {
+              const localBlocks = JSON.parse(saved);
+              for (const block of localBlocks) {
+                const bRes = await fetch('/api/board-blocks/', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: block.id, title: block.title, color: block.color, sector: currentUser.sector }),
+                });
+                if (bRes.ok) {
+                  for (const note of block.notes || []) {
+                    await fetch('/api/board-notes/', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: note.id, block: block.id, content: note.content }),
+                    });
+                  }
+                }
+              }
+              localStorage.removeItem('cronos_infoboard');
+              const reload = await fetch(`/api/board-blocks/?sector=${currentUser.sector}`);
+              if (reload.ok) setBlocks(await reload.json());
+              return;
+            } catch { /* ignore migration errors */ }
+          }
+        }
+        setBlocks(data);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar quadro:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser.sector]);
 
   useEffect(() => {
-    saveBlocks(blocks);
-  }, [blocks]);
+    loadBlocks();
+  }, [loadBlocks]);
 
   const execFormat = (cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
   };
 
-  const handleAddBlock = () => {
+  const handleAddBlock = async () => {
     if (!newBlockTitle.trim()) return;
-    const block: BoardBlock = {
-      id: generateId(),
-      title: newBlockTitle.trim(),
-      color: newBlockColor,
-      notes: [],
-      createdAt: new Date().toISOString(),
-    };
-    setBlocks(prev => [...prev, block]);
+    try {
+      const res = await fetch('/api/board-blocks/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'block-' + Date.now(),
+          title: newBlockTitle.trim(),
+          color: newBlockColor,
+          sector: currentUser.sector,
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setBlocks(prev => [...prev, { ...created, notes: [] }]);
+      }
+    } catch (e) {
+      console.error('Erro ao criar bloco:', e);
+    }
     setNewBlockTitle('');
     setNewBlockColor(BLOCK_COLORS[0].value);
     setShowNewBlockForm(false);
   };
 
-  const handleDeleteBlock = (blockId: string) => {
+  const handleDeleteBlock = async (blockId: string) => {
     if (!window.confirm('Excluir este bloco e todas as suas notas?')) return;
-    setBlocks(prev => prev.filter(b => b.id !== blockId));
+    try {
+      const res = await fetch(`/api/board-blocks/${blockId}/`, { method: 'DELETE' });
+      if (res.ok) {
+        setBlocks(prev => prev.filter(b => b.id !== blockId));
+      }
+    } catch (e) {
+      console.error('Erro ao excluir bloco:', e);
+    }
   };
 
   const handleStartEditBlock = (block: BoardBlock) => {
@@ -134,46 +174,83 @@ export default function InfoBoardView({ currentUser }: InfoBoardViewProps) {
     setEditingBlockTitle(block.title);
   };
 
-  const handleSaveEditBlock = () => {
+  const handleSaveEditBlock = async () => {
     if (!editingBlockId || !editingBlockTitle.trim()) return;
-    setBlocks(prev => prev.map(b =>
-      b.id === editingBlockId ? { ...b, title: editingBlockTitle.trim() } : b
-    ));
+    try {
+      const res = await fetch(`/api/board-blocks/${editingBlockId}/`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editingBlockTitle.trim() }),
+      });
+      if (res.ok) {
+        setBlocks(prev => prev.map(b =>
+          b.id === editingBlockId ? { ...b, title: editingBlockTitle.trim() } : b
+        ));
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar bloco:', e);
+    }
     setEditingBlockId(null);
     setEditingBlockTitle('');
   };
 
-  const handleChangeBlockColor = (blockId: string, color: string) => {
-    setBlocks(prev => prev.map(b =>
-      b.id === blockId ? { ...b, color } : b
-    ));
+  const handleChangeBlockColor = async (blockId: string, color: string) => {
+    try {
+      const res = await fetch(`/api/board-blocks/${blockId}/`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color }),
+      });
+      if (res.ok) {
+        setBlocks(prev => prev.map(b =>
+          b.id === blockId ? { ...b, color } : b
+        ));
+      }
+    } catch (e) {
+      console.error('Erro ao alterar cor:', e);
+    }
     setShowColorPicker(null);
   };
 
-  const handleAddNote = (blockId: string) => {
-    const el = inputRefs.current[blockId];
+  const handleAddNote = async (blockId: string) => {
+    const el = inputRefs.current[blockId] as HTMLTextAreaElement | null;
     if (!el) return;
-    const html = el.innerHTML.trim();
-    if (!html || html === '<br>') return;
-    const clean = sanitizeHtml(html);
-    const note: BoardNote = {
-      id: 'note-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
-      content: clean,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setBlocks(prev => prev.map(b =>
-      b.id === blockId ? { ...b, notes: [...b.notes, note] } : b
-    ));
-    el.innerHTML = '';
-    setActiveBlockInput(null);
+    const text = el.value.trim();
+    if (!text) return;
+    try {
+      const res = await fetch('/api/board-notes/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'note-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+          block: blockId,
+          content: text,
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setBlocks(prev => prev.map(b =>
+          b.id === blockId ? { ...b, notes: [...b.notes, created] } : b
+        ));
+      }
+    } catch (e) {
+      console.error('Erro ao adicionar nota:', e);
+    }
+    el.value = '';
   };
 
-  const handleDeleteNote = (blockId: string, noteId: string) => {
+  const handleDeleteNote = async (blockId: string, noteId: string) => {
     if (!window.confirm('Excluir esta nota?')) return;
-    setBlocks(prev => prev.map(b =>
-      b.id === blockId ? { ...b, notes: b.notes.filter(n => n.id !== noteId) } : b
-    ));
+    try {
+      const res = await fetch(`/api/board-notes/${noteId}/`, { method: 'DELETE' });
+      if (res.ok) {
+        setBlocks(prev => prev.map(b =>
+          b.id === blockId ? { ...b, notes: b.notes.filter(n => n.id !== noteId) } : b
+        ));
+      }
+    } catch (e) {
+      console.error('Erro ao excluir nota:', e);
+    }
   };
 
   const handleStartEditNote = (note: BoardNote) => {
@@ -181,28 +258,40 @@ export default function InfoBoardView({ currentUser }: InfoBoardViewProps) {
     setEditingNoteContent(note.content);
   };
 
-  const handleSaveEditNote = () => {
+  const handleSaveEditNote = async () => {
     if (!editingNoteId) return;
     const el = editRef.current;
     if (!el) return;
     const html = el.innerHTML.trim();
-    if (!html || html === '<br>') return;
+    if (!html || html === '<br>') {
+      alert('A nota não pode ficar vazia.');
+      return;
+    }
     const clean = sanitizeHtml(html);
-    setBlocks(prev => prev.map(b => ({
-      ...b,
-      notes: b.notes.map(n =>
-        n.id === editingNoteId ? { ...n, content: clean, updatedAt: new Date().toISOString() } : n
-      )
-    })));
+    try {
+      const res = await fetch(`/api/board-notes/${editingNoteId}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: clean }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setBlocks(prev => prev.map(b => ({
+          ...b,
+          notes: b.notes.map(n =>
+            n.id === editingNoteId ? updated : n
+          )
+        })));
+      } else {
+        const err = await res.json();
+        alert('Erro ao salvar nota: ' + (err.error || JSON.stringify(err)));
+      }
+    } catch (e) {
+      alert('Erro ao salvar nota. Verifique o console.');
+      console.error('Erro ao salvar nota:', e);
+    }
     setEditingNoteId(null);
     setEditingNoteContent('');
-  };
-
-  const handleKeyDown = (blockId: string, e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleAddNote(blockId);
-    }
   };
 
   const formatDate = (iso: string) => {
@@ -219,7 +308,12 @@ export default function InfoBoardView({ currentUser }: InfoBoardViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4 gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900 leading-none">Quadro de Informação</h2>
-          <p className="text-xs text-gray-500 mt-1">Blocos temáticos com notas para reuniões, prazos, contatos e lembretes.</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Blocos temáticos com notas para reuniões, prazos, contatos e lembretes.
+            <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-bold text-blue-800">
+              {currentUser.sector}
+            </span>
+          </p>
         </div>
         <button
           onClick={() => setShowNewBlockForm(!showNewBlockForm)}
@@ -279,8 +373,13 @@ export default function InfoBoardView({ currentUser }: InfoBoardViewProps) {
         </div>
       )}
 
-      {/* Blocks Grid */}
-      {blocks.length === 0 && !showNewBlockForm ? (
+      {/* Loading State */}
+      {loading ? (
+        <div className="py-20 text-center text-gray-400">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Carregando quadro...</p>
+        </div>
+      ) : blocks.length === 0 && !showNewBlockForm ? (
         <div className="py-20 text-center text-gray-400">
           <Edit3 className="h-10 w-10 mx-auto mb-3 text-gray-300" />
           <p className="text-sm font-semibold text-gray-500">Nenhum bloco criado ainda</p>
@@ -434,17 +533,12 @@ export default function InfoBoardView({ currentUser }: InfoBoardViewProps) {
 
                 {/* Add Note Input */}
                 <div className="border-t border-gray-200 bg-gray-50/80">
-                  <div className="border-b border-gray-200">
-                    <FormatToolbar onCmd={(cmd, val) => { inputRefs.current[block.id]?.focus(); execFormat(cmd, val); }} />
-                  </div>
                   <div className="flex items-start p-2.5 space-x-1.5">
-                    <div
+                    <textarea
                       ref={el => { inputRefs.current[block.id] = el; }}
-                      contentEditable
-                      onKeyDown={e => handleKeyDown(block.id, e)}
-                      onFocus={() => setActiveBlockInput(block.id)}
-                      data-placeholder="Nova nota..."
-                      className="flex-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 focus:border-blue-600 focus:outline-hidden min-h-[28px] max-h-24 overflow-y-auto [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                      rows={2}
+                      placeholder="Nova nota..."
+                      className="flex-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 focus:border-blue-600 focus:outline-hidden resize-none"
                     />
                     <button
                       onClick={() => handleAddNote(block.id)}

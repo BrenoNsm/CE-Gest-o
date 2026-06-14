@@ -29,7 +29,8 @@ class User(models.Model):
     email = models.CharField(max_length=255)
     password = models.CharField(max_length=128, default='')
     avatar_url = models.CharField(max_length=500, blank=True, null=True)
-    is_admin = models.BooleanField(default=False)
+    is_admin = models.BooleanField(default=False, verbose_name='Administrador (Visão Geral)')
+    is_secretary = models.BooleanField(default=False, verbose_name='Secretário(a) do setor')
 
     def set_password(self, raw_password):
         self.password = make_password(raw_password)
@@ -51,7 +52,7 @@ class Ferias(models.Model):
     data_inicio = models.CharField(max_length=50)
     data_fim = models.CharField(max_length=50)
     dias = models.IntegerField()
-    periodo_aquisitivo = models.CharField(max_length=50)
+    periodo_aquisitivo = models.CharField(max_length=50, blank=True, default='')
     parcela = models.CharField(max_length=50)
     data_cadastro = models.CharField(max_length=50)
 
@@ -66,7 +67,7 @@ class Portaria(models.Model):
     data_publicacao = models.CharField(max_length=50)
     data_inicio_periodo = models.CharField(max_length=50, db_column='dataInicioPeriodo')
     data_fim_periodo = models.CharField(max_length=50, db_column='dataFimPeriodo')
-    fundamentacao = models.TextField()
+    fundamentacao = models.TextField(blank=True, default='')
     objetivo = models.TextField()
     status = models.CharField(max_length=50)
     sector = models.CharField(max_length=50)
@@ -165,3 +166,25 @@ class SystemNotification(models.Model):
 
     def __str__(self):
         return f"{self.titulo} ({self.sector})"
+
+
+class BoardBlock(models.Model):
+    id = models.CharField(max_length=50, primary_key=True)
+    title = models.CharField(max_length=255)
+    color = models.CharField(max_length=100, default='border-blue-500 bg-blue-50')
+    sector = models.CharField(max_length=50, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+
+class BoardNote(models.Model):
+    id = models.CharField(max_length=50, primary_key=True)
+    block = models.ForeignKey(BoardBlock, on_delete=models.CASCADE, related_name='notes')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.content[:50]

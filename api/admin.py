@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin
-from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
+from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification, BoardBlock, BoardNote
 
 @admin.register(Cargo)
 class CargoAdmin(admin.ModelAdmin):
@@ -66,6 +66,9 @@ class UserAdmin(admin.ModelAdmin):
         ('Segurança', {
             'fields': ('password',),
         }),
+        ('Permissões', {
+            'fields': ('is_admin', 'is_secretary'),
+        }),
     )
 
 @admin.register(Ferias)
@@ -119,6 +122,16 @@ class SystemNotificationAdmin(admin.ModelAdmin):
     list_filter = ('sector', 'tipo', 'lida')
     search_fields = ('titulo', 'mensagem')
     ordering = ('-data_hora',)
+
+@admin.register(BoardBlock)
+class BoardBlockAdmin(admin.ModelAdmin):
+    list_display = ('title', 'created_at')
+    search_fields = ('title',)
+
+@admin.register(BoardNote)
+class BoardNoteAdmin(admin.ModelAdmin):
+    list_display = ('block', 'content', 'created_at')
+    list_filter = ('block',)
 
 # Customização do Painel Admin
 admin.site.site_header = "Cronos - Administração"

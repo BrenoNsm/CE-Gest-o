@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification
+from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification, BoardBlock, BoardNote
 
 # -----------------------------------------------------------------------------
 # 1. Serializers Simples e Aninhados
@@ -45,6 +45,7 @@ class UserSerializer(serializers.ModelSerializer):
     id = serializers.CharField()
     avatarUrl = serializers.CharField(source='avatar_url', allow_null=True, required=False)
     isAdmin = serializers.BooleanField(source='is_admin', required=False)
+    isSecretary = serializers.BooleanField(source='is_secretary', required=False)
     password = serializers.CharField(write_only=True, required=False)
     ferias = FeriasSerializer(many=True, read_only=True)
 
@@ -52,7 +53,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'matricula', 'nome', 'cargo', 'sector', 
-            'email', 'password', 'avatarUrl', 'isAdmin', 'ferias'
+            'email', 'password', 'avatarUrl', 'isAdmin', 'isSecretary', 'ferias'
         ]
 
     def create(self, validated_data):
@@ -288,3 +289,23 @@ class SystemNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = SystemNotification
         fields = ['id', 'portariaId', 'titulo', 'mensagem', 'tipo', 'dataHora', 'lida', 'sector']
+
+
+class BoardNoteSerializer(serializers.ModelSerializer):
+    id = serializers.CharField()
+    createdAt = serializers.CharField(source='created_at', read_only=True)
+    updatedAt = serializers.CharField(source='updated_at', read_only=True)
+
+    class Meta:
+        model = BoardNote
+        fields = ['id', 'block', 'content', 'createdAt', 'updatedAt']
+
+
+class BoardBlockSerializer(serializers.ModelSerializer):
+    id = serializers.CharField()
+    notes = BoardNoteSerializer(many=True, read_only=True)
+    createdAt = serializers.CharField(source='created_at', read_only=True)
+
+    class Meta:
+        model = BoardBlock
+        fields = ['id', 'title', 'color', 'notes', 'createdAt', 'sector']
