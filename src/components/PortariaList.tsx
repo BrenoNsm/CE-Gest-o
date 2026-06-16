@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { User, Portaria, Fase } from '../types';
+import { User, Portaria, Fase, Tematica } from '../types';
 import { MUNICIPIOS_RR } from '../data';
-import { FileText, Search, UserCheck, Calendar, MapPin, CheckCircle2, CloudLightning, Plus, Edit, Trash2, ArrowUpRight, ChevronRight, File, Paperclip, MessageSquare, Send, UploadCloud, Play, HelpCircle, CheckCircle, Clock, AlertCircle, X } from 'lucide-react';
+import { FileText, Search, UserCheck, Calendar, MapPin, CheckCircle2, CloudLightning, Plus, Edit, Trash2, ArrowUpRight, ChevronRight, File, Paperclip, MessageSquare, Send, UploadCloud, Play, HelpCircle, CheckCircle, Clock, AlertCircle, X, Tag } from 'lucide-react';
 import PortariaDetailDrawer from './PortariaDetailDrawer';
 
 interface PortariaListProps {
@@ -13,6 +13,7 @@ interface PortariaListProps {
   onAddNewClick: () => void;
   selectedPortariaExternal: Portaria | null;
   setSelectedPortariaExternal: (p: Portaria | null) => void;
+  tematicas: Tematica[];
 }
 
 export default function PortariaList({
@@ -26,9 +27,13 @@ export default function PortariaList({
   setSelectedPortariaExternal
 }: PortariaListProps) {
   // Filters State
-  const [filterStatus, setFilterStatus] = useState<string>('Todas');
+  const [filterStatus, setFilterStatus] = useState<string>('Ativa');
   const [filterAuditor, setFilterAuditor] = useState<string>('Todos');
   const [filterMuni, setFilterMuni] = useState<string>('Todos');
+  const [filterTematica, setFilterTematica] = useState<string>('Todas');
+  const [filterAno, setFilterAno] = useState<string>('Todos');
+  const [sortField, setSortField] = useState<'dataPublicacao' | 'numero' | 'status'>('dataPublicacao');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
   // Drawer Detailed View
@@ -49,22 +54,47 @@ export default function PortariaList({
     return portarias.filter(p => p.sector === currentUser.sector);
   }, [portarias, currentUser.sector]);
 
-  // Unique auditors and municipalities available for filter dropdown in current sector
+  // Unique auditors, municipalities, and anos available for filter dropdowns
   const uniqueAuditors = useMemo(() => {
     const set = new Set<string>();
     sectorPortarias.forEach(p => set.add(p.auditorDesignado.nome));
     return Array.from(set);
   }, [sectorPortarias]);
 
-  // Filter computation
+  const uniqueAnos = useMemo(() => {
+    const set = new Set<string>();
+    sectorPortarias.forEach(p => {
+      const ano = p.dataPublicacao?.split('-')[0];
+      if (ano) set.add(ano);
+    });
+    return Array.from(set).sort((a, b) => parseInt(b) - parseInt(a));
+  }, [sectorPortarias]);
+
+  // Filter + Sort computation
   const filteredPortarias = useMemo(() => {
-    return sectorPortarias.filter(p => {
+    let items = sectorPortarias.filter(p => {
       const matchStatus = filterStatus === 'Todas' || p.status === filterStatus;
       const matchAuditor = filterAuditor === 'Todos' || p.auditorDesignado.nome === filterAuditor;
       const matchMuni = filterMuni === 'Todos' || p.unidadesJurisdicionadas.includes(filterMuni);
-      return matchStatus && matchAuditor && matchMuni;
+      const matchTematica = filterTematica === 'Todas' || (p.tematicas || []).some(t => t.nome === filterTematica);
+      const matchAno = filterAno === 'Todos' || (p.dataPublicacao?.startsWith(filterAno));
+      return matchStatus && matchAuditor && matchMuni && matchTematica && matchAno;
     });
-  }, [sectorPortarias, filterStatus, filterAuditor, filterMuni]);
+
+    items.sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'dataPublicacao') {
+        cmp = (a.dataPublicacao || '').localeCompare(b.dataPublicacao || '');
+      } else if (sortField === 'numero') {
+        cmp = a.numero.localeCompare(b.numero);
+      } else {
+        cmp = a.status.localeCompare(b.status);
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return items;
+  }, [sectorPortarias, filterStatus, filterAuditor, filterMuni, filterTematica, filterAno, sortField, sortDir]);
 
   // Calculate percentage of phases completed
   const getProgressInfo = (p: Portaria) => {
@@ -122,7 +152,7 @@ export default function PortariaList({
       {/* Advanced Filters Panel */}
       <div className="rounded-xl border border-gray-150 bg-white p-4 shadow-3xs space-y-3">
         <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Filtros Regulatórios</p>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
           {/* Status Filter */}
           <div>
             <label className="block text-[11px] text-gray-500 mb-1">Status Geral</label>
@@ -169,11 +199,49 @@ export default function PortariaList({
             </select>
           </div>
 
-          {/* Layout Toggle and Counter */}
-          <div className="flex items-end justify-between sm:justify-end gap-3 pb-0.5">
-            <span className="text-xs font-semibold text-gray-500 self-center">
-              Achei {filteredPortarias.length} Resultados
-            </span>
+          {/* Tematica Filter */}
+          <div>
+            <label className="block text-[11px] text-gray-500 mb-1">Campo Temático</label>
+            <select
+              value={filterTematica}
+              onChange={(e) => setFilterTematica(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-slate-50 px-2.5 py-1.5 text-xs text-gray-800"
+            >
+              <option value="Todas">Todas as Temáticas</option>
+              {Array.from(new Set(sectorPortarias.flatMap(p => (p.tematicas || []).map(t => t.nome)))).map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Ano Filter */}
+          <div>
+            <label className="block text-[11px] text-gray-500 mb-1">Ano de Designação</label>
+            <select
+              value={filterAno}
+              onChange={(e) => setFilterAno(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-slate-50 px-2.5 py-1.5 text-xs text-gray-800"
+            >
+              <option value="Todos">Todos os Anos</option>
+              {uniqueAnos.map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {/* Result count, sort, and layout toggle */}
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <span className="text-xs font-semibold text-gray-500">
+            Achei {filteredPortarias.length} Resultados
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+              className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-600 px-2 py-1 rounded border border-slate-200 hover:border-blue-300 transition-colors"
+              title={sortDir === 'desc' ? 'Ordenar do mais antigo para o mais novo' : 'Ordenar do mais novo para o mais antigo'}
+            >
+              {sortDir === 'desc' ? '\u25BC' : '\u25B2'} {sortField === 'dataPublicacao' ? 'Publicação' : 'Número'}
+            </button>
             <div className="rounded-lg border border-gray-200 p-0.5 flex bg-gray-50">
               <button
                 onClick={() => setViewMode('cards')}
@@ -247,6 +315,16 @@ export default function PortariaList({
                       <MapPin className="h-3.5 w-3.5 text-red-600 shrink-0 mt-0.5" />
                       <span className="line-clamp-1">Municípios ({p.unidadesJurisdicionadas.length}): <span className="text-gray-700">{p.unidadesJurisdicionadas.map(m => m.replace('Prefeitura Municipal de ', '')).join(', ')}</span></span>
                     </div>
+                    {(p.tematicas && p.tematicas.length > 0) && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {p.tematicas.map(t => (
+                          <span key={t.id} className="inline-flex items-center space-x-0.5 rounded-full bg-blue-50 text-blue-700 px-1.5 py-0.5 text-[9px] font-medium border border-blue-100">
+                            <Tag className="h-2.5 w-2.5" />
+                            <span>{t.nome}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 

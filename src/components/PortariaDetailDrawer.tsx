@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Portaria, Documento, Comentario } from '../types';
-import { X, File, UploadCloud, Send } from 'lucide-react';
+import { X, File, UploadCloud, Send, Tag } from 'lucide-react';
 
 interface PortariaDetailDrawerProps {
   currentUser: User;
@@ -50,25 +50,58 @@ export default function PortariaDetailDrawer({ currentUser, portaria: initialPor
   };
 
   // Simulated file upload
+  const [uploadTipo, setUploadTipo] = useState<'informacao' | 'produtividade'>('informacao');
+
   const handleFileUpload = (file: File) => {
     const newDoc: Documento = {
       id: 'doc-' + Date.now(),
       nome: file.name,
       dataUpload: new Date().toISOString().split('T')[0],
       tamanho: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      uploadedBy: currentUser.nome
+      uploadedBy: currentUser.nome,
+      tipo: uploadTipo
     };
+    const tipoLabel = uploadTipo === 'informacao' ? 'informativo' : 'de produtividade';
     const updated: Portaria = { ...portaria, documentos: [...portaria.documentos, newDoc] };
-    onUpdatePortaria(updated, `Anexou novo documento técnico: ${file.name}`);
+    onUpdatePortaria(updated, `Anexou documento ${tipoLabel}: ${file.name}`);
     setPortaria(updated);
   };
+
+  const handleFileUploadWithTipo = (file: File, tipo: 'informacao' | 'produtividade') => {
+    setUploadTipo(tipo);
+    const newDoc: Documento = {
+      id: 'doc-' + Date.now(),
+      nome: file.name,
+      dataUpload: new Date().toISOString().split('T')[0],
+      tamanho: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      uploadedBy: currentUser.nome,
+      tipo
+    };
+    const tipoLabel = tipo === 'informacao' ? 'informativo' : 'de produtividade';
+    const updated: Portaria = { ...portaria, documentos: [...portaria.documentos, newDoc] };
+    onUpdatePortaria(updated, `Anexou documento ${tipoLabel}: ${file.name}`);
+    setPortaria(updated);
+  };
+
+  const [dropTipo, setDropTipo] = useState<'informacao' | 'produtividade'>('informacao');
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files.length > 0) {
-      handleFileUpload(e.dataTransfer.files[0]);
-      alert(`Documento "${e.dataTransfer.files[0].name}" anexado com sucesso.`);
+      handleFileUploadWithTipo(e.dataTransfer.files[0], dropTipo);
+      const tipoLabel = dropTipo === 'informacao' ? 'informativo' : 'de produtividade';
+      alert(`Documento ${tipoLabel} "${e.dataTransfer.files[0].name}" anexado com sucesso.`);
+    }
+  };
+
+  const handleDropWithTipo = (e: React.DragEvent, tipo: 'informacao' | 'produtividade') => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files.length > 0) {
+      handleFileUploadWithTipo(e.dataTransfer.files[0], tipo);
+      const tipoLabel = tipo === 'informacao' ? 'informativo' : 'de produtividade';
+      alert(`Documento ${tipoLabel} "${e.dataTransfer.files[0].name}" anexado com sucesso.`);
     }
   };
 
@@ -123,6 +156,20 @@ export default function PortariaDetailDrawer({ currentUser, portaria: initialPor
                 ))}
               </div>
             </div>
+
+            {portaria.tematicas && portaria.tematicas.length > 0 && (
+              <div className="pt-2">
+                <span className="text-gray-400 block uppercase font-bold text-[9px]">Campos Temáticos:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {portaria.tematicas.map(t => (
+                    <span key={t.id} className="inline-flex items-center space-x-0.5 rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 text-[10px] font-medium border border-blue-100">
+                      <Tag className="h-3 w-3" />
+                      <span>{t.nome}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Status */}
@@ -186,65 +233,29 @@ export default function PortariaDetailDrawer({ currentUser, portaria: initialPor
             </div>
           </div>
 
-          {/* Documents */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Documentos do Processo / Anexos</p>
-              <label className="text-[11px] font-semibold text-blue-700 hover:underline cursor-pointer">
-                Selecionar Arquivo
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleFileUpload(e.target.files[0]);
-                      alert(`Documento "${e.target.files[0].name}" anexado com sucesso.`);
-                    }
-                  }}
-                />
-              </label>
-            </div>
+          {/* Documentos de Informação */}
+          <DocumentSection
+            title="Documentos de Informação (Portarias, Despachos)"
+            tipo="informacao"
+            portaria={portaria}
+            currentUser={currentUser}
+            onUpload={handleFileUploadWithTipo}
+            isDragging={isDragging}
+            setIsDragging={setIsDragging}
+            onDrop={handleDropWithTipo}
+          />
 
-            <div
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-5 text-center transition-all ${
-                isDragging
-                  ? 'border-blue-500 bg-blue-50/50'
-                  : 'border-slate-200 bg-gradient-to-b from-slate-50/20 to-slate-50 hover:bg-slate-50'
-              }`}
-            >
-              <UploadCloud className="h-8 w-8 text-slate-400 mx-auto mb-2 animate-bounce" />
-              <p className="text-xs font-semibold text-slate-700">Arraste e solte o Relatório Técnico PDF</p>
-              <p className="text-[10px] text-slate-450 mt-1">Formato: PDF, DOCX, XLSX ou ZIP (Máx 15MB)</p>
-            </div>
-
-            {portaria.documentos.length === 0 ? (
-              <p className="text-center text-xs text-gray-400 py-2">Nenhum documento anexado ao processo.</p>
-            ) : (
-              <div className="divide-y divide-gray-100 rounded-lg border border-gray-100 bg-white">
-                {portaria.documentos.map(doc => (
-                  <div key={doc.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50">
-                    <div className="flex items-center space-x-2">
-                      <File className="h-4.5 w-4.5 text-blue-600 shrink-0" />
-                      <div className="leading-tight">
-                        <span className="font-semibold text-gray-800 text-[11px] block">{doc.nome}</span>
-                        <span className="text-[9px] text-gray-400 block mt-0.5">Enviado em {doc.dataUpload} &bull; {doc.tamanho} por {doc.uploadedBy.split(' ')[0]}</span>
-                      </div>
-                    </div>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); alert("Documento baixado de forma simulada."); }}
-                      className="text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded px-2 py-1 transition-all"
-                    >
-                      Baixar Doc
-                    </a>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Documentos de Produtividade */}
+          <DocumentSection
+            title="Documentos de Produtividade (Análises, Relatórios, Processos)"
+            tipo="produtividade"
+            portaria={portaria}
+            currentUser={currentUser}
+            onUpload={handleFileUploadWithTipo}
+            isDragging={isDragging}
+            setIsDragging={setIsDragging}
+            onDrop={handleDropWithTipo}
+          />
 
           {/* Comments */}
           <div className="border-t border-gray-100 pt-5 space-y-3">
@@ -298,6 +309,89 @@ export default function PortariaDetailDrawer({ currentUser, portaria: initialPor
         </div>
 
       </div>
+    </div>
+  );
+}
+
+// Sub-componente para seção de documentos por tipo
+function DocumentSection({
+  title, tipo, portaria, currentUser, onUpload, isDragging, setIsDragging, onDrop
+}: {
+  title: string;
+  tipo: 'informacao' | 'produtividade';
+  portaria: Portaria;
+  currentUser: User;
+  onUpload: (file: File, tipo: 'informacao' | 'produtividade') => void;
+  isDragging: boolean;
+  setIsDragging: (v: boolean) => void;
+  onDrop: (e: React.DragEvent, tipo: 'informacao' | 'produtividade') => void;
+}) {
+  const docs = portaria.documentos.filter(d => d.tipo === tipo);
+  const dragColor = tipo === 'informacao' ? 'border-blue-500 bg-blue-50/50' : 'border-emerald-500 bg-emerald-50/50';
+  const uploadColor = tipo === 'informacao' ? 'border-slate-200 bg-gradient-to-b from-slate-50/20 to-slate-50 hover:bg-slate-50' : 'border-slate-200 bg-gradient-to-b from-amber-50/20 to-amber-50 hover:bg-amber-50';
+  const iconColor = tipo === 'informacao' ? 'text-blue-600' : 'text-emerald-600';
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">{title}</p>
+        <label className="text-[11px] font-semibold text-blue-700 hover:underline cursor-pointer">
+          Selecionar Arquivo
+          <input
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                onUpload(e.target.files[0], tipo);
+                const tipoLabel = tipo === 'informacao' ? 'informativo' : 'de produtividade';
+                alert(`Documento ${tipoLabel} "${e.target.files[0].name}" anexado com sucesso.`);
+              }
+            }}
+          />
+        </label>
+      </div>
+
+      <div
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => onDrop(e, tipo)}
+        className={`border-2 border-dashed rounded-lg p-5 text-center transition-all ${
+          isDragging ? dragColor : uploadColor
+        }`}
+      >
+        <UploadCloud className={`h-8 w-8 text-slate-400 mx-auto mb-2 animate-bounce ${iconColor}`} />
+        <p className="text-xs font-semibold text-slate-700">
+          {tipo === 'informacao' ? 'Arraste portarias, despachos e documentos oficiais' : 'Arraste análises, relatórios e processos de trabalho'}
+        </p>
+        <p className="text-[10px] text-slate-450 mt-1">Formato: PDF, DOCX, XLSX ou ZIP (Máx 15MB)</p>
+      </div>
+
+      {docs.length === 0 ? (
+        <p className="text-center text-xs text-gray-400 py-2">
+          {tipo === 'informacao' ? 'Nenhum documento informativo anexado.' : 'Nenhum documento de produtividade anexado.'}
+        </p>
+      ) : (
+        <div className="divide-y divide-gray-100 rounded-lg border border-gray-100 bg-white">
+          {docs.map(doc => (
+            <div key={doc.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50">
+              <div className="flex items-center space-x-2">
+                <File className={`h-4.5 w-4.5 ${iconColor} shrink-0`} />
+                <div className="leading-tight">
+                  <span className="font-semibold text-gray-800 text-[11px] block">{doc.nome}</span>
+                  <span className="text-[9px] text-gray-400 block mt-0.5">Enviado em {doc.dataUpload} &bull; {doc.tamanho} por {doc.uploadedBy.split(' ')[0]}</span>
+                </div>
+              </div>
+              <a
+                href="#"
+                onClick={(e) => { e.preventDefault(); alert("Documento baixado de forma simulada."); }}
+                className="text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded px-2 py-1 transition-all"
+              >
+                Baixar Doc
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

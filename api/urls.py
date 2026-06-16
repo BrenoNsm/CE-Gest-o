@@ -13,6 +13,7 @@ router.register(r'logs-excluidos', views.LogExcluidoViewSet, basename='logexclui
 router.register(r'notifications', views.SystemNotificationViewSet, basename='notification')
 router.register(r'board-blocks', views.BoardBlockViewSet, basename='boardblock')
 router.register(r'board-notes', views.BoardNoteViewSet, basename='boardnote')
+router.register(r'tematicas', views.TematicaViewSet, basename='tematica')
 
 urlpatterns = [
     path('login/', views.login, name='login'),

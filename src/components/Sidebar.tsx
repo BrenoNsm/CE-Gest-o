@@ -1,11 +1,11 @@
 import React from 'react';
 import { User } from '../types';
-import { LayoutDashboard, FileText, BarChart3, History, ShieldAlert, Award, Clock, Calendar, Users, Clipboard, Eye, X } from 'lucide-react';
+import { LayoutDashboard, FileText, BarChart3, History, ShieldAlert, Award, Clock, Calendar, Users, Clipboard, Eye, X, Archive } from 'lucide-react';
 
 interface SidebarProps {
   currentUser: User;
-  activeView: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral';
-  setActiveView: (view: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral') => void;
+  activeView: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral' | 'concluidas';
+  setActiveView: (view: 'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral' | 'concluidas') => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -59,6 +59,12 @@ export default function Sidebar({ currentUser, activeView, setActiveView, isOpen
       label: 'Quadro de Informação',
       icon: Clipboard,
       description: 'Notas e blocos temáticos'
+    },
+    {
+      id: 'concluidas',
+      label: 'Auditorias Concluídas',
+      icon: Archive,
+      description: 'Portarias encerradas'
     }
   ] as const;
 
@@ -138,7 +144,7 @@ export default function Sidebar({ currentUser, activeView, setActiveView, isOpen
         <div className="border-t border-slate-800 p-4">
           <div className="flex items-center space-x-2 text-[10px] text-slate-400">
             <Clock className="h-3 w-3 text-blue-400" />
-            <span>Ref: Exercício de {new Date().getFullYear()}</span>
+            <span>Exercício de {new Date().getFullYear()}</span>
           </div>
           <p className="mt-1 text-[9px] text-slate-500 font-sans leading-tight">
             Gestão de Fiscalizações de Controle Externo.

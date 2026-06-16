@@ -1,21 +1,23 @@
 import React, { useState, useMemo } from 'react';
-import { User, Portaria } from '../types';
+import { User, Portaria, Tematica } from '../types';
 import { MUNICIPIOS_RR } from '../data';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { FileDown, Calendar, Users, CheckCircle, Clock, AlertTriangle, Lightbulb, TrendingUp, Sparkles, Filter, RefreshCcw, Download } from 'lucide-react';
+import { FileDown, Calendar, Users, CheckCircle, Clock, AlertTriangle, Lightbulb, TrendingUp, Sparkles, Filter, RefreshCcw, Download, Tag } from 'lucide-react';
 
 interface ReportsViewProps {
   currentUser: User;
   portarias: Portaria[];
+  tematicas: Tematica[];
 }
 
-export default function ReportsView({ currentUser, portarias }: ReportsViewProps) {
+export default function ReportsView({ currentUser, portarias, tematicas }: ReportsViewProps) {
   // Filters for reporting
   const [rptAuditor, setRptAuditor] = useState<string>('Todos');
   const [rptMuni, setRptMuni] = useState<string>('Todos');
   const [rptStatus, setRptStatus] = useState<string>('Todas');
+  const [rptTematica, setRptTematica] = useState<string>('Todas');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
@@ -39,6 +41,7 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
       const matchAuditor = rptAuditor === 'Todos' || p.auditorDesignado.nome === rptAuditor;
       const matchMuni = rptMuni === 'Todos' || p.unidadesJurisdicionadas.includes(rptMuni);
       const matchStatus = rptStatus === 'Todas' || p.status === rptStatus;
+      const matchTematica = rptTematica === 'Todas' || (p.tematicas || []).some(t => t.nome === rptTematica);
       
       let matchDates = true;
       if (startDate) {
@@ -48,9 +51,9 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
         matchDates = matchDates && p.dataFimPeríodo <= endDate;
       }
 
-      return matchAuditor && matchMuni && matchStatus && matchDates;
+      return matchAuditor && matchMuni && matchStatus && matchTematica && matchDates;
     });
-  }, [sectorPortarias, rptAuditor, rptMuni, rptStatus, startDate, endDate]);
+  }, [sectorPortarias, rptAuditor, rptMuni, rptStatus, rptTematica, startDate, endDate]);
 
   // 1. Carga de Trabalho Analysis
   const allocationAnalysis = useMemo(() => {
@@ -165,28 +168,49 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
   // Excel Exporter implementation with SheetJS (Actual file download!)
   const exportToExcel = () => {
     const workbook = XLSX.utils.book_new();
+    const HOJE = new Date().toISOString().slice(0, 10);
 
+    // ---- Sheet 1: Portarias Consolidado ----
     if (reportResults.length > 0) {
-      const wsData = reportResults.map(p => ({
-        'Número Portaria': p.numero,
-        'Tipo de Documento': p.tipo,
-        'Data Publicação': p.dataPublicacao,
-        'Período Início': p.dataInicioPeríodo,
-        'Período Fim': p.dataFimPeríodo,
-        'Fundamentação Legal': p.fundamentacao,
-        'Objetivo': p.objetivo,
-        'Status': p.status,
-        'Auditor Designado': p.auditorDesignado.nome,
-        'Matrícula Auditor': p.auditorDesignado.matricula,
-        'Qtd Municípios': p.unidadesJurisdicionadas.length,
-        'Supervisor Coordenador': p.supervisor.nome,
-        'Setor': p.sector
-      }));
+      const wsData = reportResults.map(p => {
+        const activeFase = p.cronograma.find(f => f.status === 'Em andamento') || p.cronograma.find(f => f.status === 'Pendente') || p.cronograma[p.cronograma.length - 1];
+        const prodDocs = p.documentos.filter(d => d.tipo === 'produtividade');
+        const infoDocs = p.documentos.filter(d => d.tipo === 'informacao');
+        return {
+          'Número Portaria': p.numero,
+          'Tipo de Documento': p.tipo,
+          'Data Publicação': p.dataPublicacao,
+          'Período Início': p.dataInicioPeríodo,
+          'Período Fim': p.dataFimPeríodo,
+          'Fundamentação Legal': p.fundamentacao,
+          'Objetivo': p.objetivo,
+          'Status': p.status,
+          'Auditor Designado': p.auditorDesignado.nome,
+          'Matrícula Auditor': p.auditorDesignado.matricula,
+          'Cargo Auditor': p.auditorDesignado.cargo,
+          'Supervisor': p.supervisor.nome,
+          'Setor': p.sector,
+          'Qtd Municípios': p.unidadesJurisdicionadas.length,
+          'Municípios': p.unidadesJurisdicionadas.join(', '),
+          'Temáticas': (p.tematicas || []).map(t => t.nome).join(', '),
+          'Fase Atual': activeFase?.nome || '-',
+          'Status Fase Atual': activeFase?.status || '-',
+          'Data Fim Fase Atual': activeFase?.dataFim || '-',
+          'Progresso %': Math.round(p.cronograma.filter(f => f.status === 'Concluída').length / p.cronograma.length * 100),
+          'Concluído no Prazo': p.concluidoNoPrazo ? 'Sim' : 'Não',
+          'Dias Atraso': p.tempoAtrasoDias || 0,
+          'Docs Informação': infoDocs.length,
+          'Docs Produtividade': prodDocs.length,
+          'Total Documentos': p.documentos.length,
+          'Nomes Docs Produtividade': prodDocs.map(d => d.nome + ' (' + d.dataUpload + ')').join('; '),
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(wsData);
       XLSX.utils.book_append_sheet(workbook, worksheet, "Portarias " + currentUser.sector);
     }
 
+    // ---- Sheet 2: Cumprimento de Prazos ----
     const statsData = [{
       'Indicador': 'Concluídas no prazo',
       'Quantidade': timingStatistics.concluidoNoPrazo,
@@ -202,10 +226,91 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
     }, {
       'Indicador': 'Total geral',
       'Quantidade': timingStatistics.totalGeral,
+    }, {
+      'Indicador': 'Taxa geral de cumprimento (%)',
+      'Quantidade': timingStatistics.taxaGeralPrazo,
     }];
 
     const statsSheet = XLSX.utils.json_to_sheet(statsData);
     XLSX.utils.book_append_sheet(workbook, statsSheet, "Cumprimento de Prazos");
+
+    // ---- Sheets por Auditor (reflexo do PDF) ----
+    const auditorGroups: Record<string, Portaria[]> = {};
+    reportResults.forEach(p => {
+      const name = p.auditorDesignado.nome;
+      if (!auditorGroups[name]) auditorGroups[name] = [];
+      auditorGroups[name].push(p);
+    });
+
+    Object.entries(auditorGroups).forEach(([auditorName, portarias]) => {
+      const sheetName = auditorName.split(' ').slice(0, 2).join(' ').slice(0, 31);
+
+      // Timeline data
+      const timelineData = portarias.map(p => {
+        const activeFase = p.cronograma.find(f => f.status === 'Em andamento') || p.cronograma.find(f => f.status === 'Pendente') || p.cronograma[p.cronograma.length - 1];
+        return {
+          'Portaria': p.numero,
+          'Objetivo': p.objetivo,
+          'Início': p.dataInicioPeríodo,
+          'Fim': p.dataFimPeríodo,
+          'Fase Atual': activeFase?.nome || '-',
+          'Status Fase': activeFase?.status || '-',
+          'Progresso %': Math.round(p.cronograma.filter(f => f.status === 'Concluída').length / p.cronograma.length * 100),
+          'Status Portaria': p.status,
+          'Temáticas': (p.tematicas || []).map(t => t.nome).join(', '),
+          'Qtd Docs Produtividade': p.documentos.filter(d => d.tipo === 'produtividade').length,
+        };
+      });
+      const timelineSheet = XLSX.utils.json_to_sheet(timelineData);
+      XLSX.utils.book_append_sheet(workbook, timelineSheet, `${sheetName} - Timeline`);
+
+      // Productivity docs
+      const prodDocsList = portarias.flatMap(p =>
+        p.documentos.filter(d => d.tipo === 'produtividade').map(d => ({
+          'Nome Arquivo': d.nome,
+          'Portaria': p.numero,
+          'Data Upload': d.dataUpload,
+          'Tamanho': d.tamanho,
+          'Enviado Por': d.uploadedBy,
+          'Temáticas': (p.tematicas || []).map(t => t.nome).join(', '),
+        }))
+      );
+      if (prodDocsList.length > 0) {
+        const prodSheet = XLSX.utils.json_to_sheet(prodDocsList);
+        XLSX.utils.book_append_sheet(workbook, prodSheet, `${sheetName} - Docs Prod`);
+      }
+
+      // Deadlines per auditor
+      const aConcluidoPrazo = portarias.filter(p => p.status === 'Concluída' && p.concluidoNoPrazo !== false).length;
+      const aConcluidoAtraso = portarias.filter(p => p.status === 'Concluída' && p.concluidoNoPrazo === false).length;
+      const aAtivasDia = portarias.filter(p => {
+        if (p.status !== 'Ativa') return false;
+        return !p.cronograma.some(f => f.status !== 'Concluída' && f.dataFim < HOJE);
+      }).length;
+      const aAtivasAtraso = portarias.filter(p => {
+        if (p.status !== 'Ativa') return false;
+        return p.cronograma.some(f => f.status !== 'Concluída' && f.dataFim < HOJE);
+      }).length;
+
+      const deadlineData = [{
+        'Indicador': 'Concluídas no prazo',
+        'Quantidade': aConcluidoPrazo,
+      }, {
+        'Indicador': 'Concluídas com atraso',
+        'Quantidade': aConcluidoAtraso,
+      }, {
+        'Indicador': 'Ativas em dia',
+        'Quantidade': aAtivasDia,
+      }, {
+        'Indicador': 'Ativas em atraso',
+        'Quantidade': aAtivasAtraso,
+      }, {
+        'Indicador': 'Total',
+        'Quantidade': portarias.length,
+      }];
+      const deadlineSheet = XLSX.utils.json_to_sheet(deadlineData);
+      XLSX.utils.book_append_sheet(workbook, deadlineSheet, `${sheetName} - Prazos`);
+    });
 
     XLSX.writeFile(workbook, `Relatorio_Portarias_TCERR_${currentUser.sector}.xlsx`);
   };
@@ -234,27 +339,39 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
     }
 
     const doc = new jsPDF();
-    
-    // Header
-    doc.setFillColor(30, 41, 59);
-    doc.rect(0, 0, 210, 32, 'F');
 
     const logoData = await getLogoData();
-    if (logoData) {
-      doc.addImage(logoData, "PNG", 15, 12, 28, 12);
-    }
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("TRIBUNAL DE CONTAS DO ESTADO DE RORAIMA", 48, 14);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text(`CONTROLE EXTERNO DE SISTEMA DE PORTARIAS - SETOR: ${currentUser.sector}`, 48, 20);
-    doc.text(`EXERCÍCIO DE COORDENAÇÃO DE CONTAS - ${new Date().getFullYear()}`, 48, 25);
 
-    // Margins and positions
-    let y = 42;
+    const drawHeader = (isFirstPage: boolean) => {
+      const h = isFirstPage ? 32 : 28;
+      doc.setFillColor(30, 41, 59);
+      doc.rect(0, 0, 210, h, 'F');
+      if (logoData) {
+        doc.addImage(logoData, "PNG", 15, isFirstPage ? 12 : 10, 22, isFirstPage ? 12 : 9);
+      }
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(isFirstPage ? 14 : 10);
+      doc.text("TRIBUNAL DE CONTAS DO ESTADO DE RORAIMA", 42, isFirstPage ? 14 : 12);
+      doc.setFontSize(isFirstPage ? 9 : 7);
+      doc.setFont("helvetica", "normal");
+      doc.text(`CONTROLE EXTERNO DE SISTEMA DE PORTARIAS - SETOR: ${currentUser.sector}`, 42, isFirstPage ? 20 : 17);
+      doc.text(`EXERCÍCIO DE COORDENAÇÃO DE CONTAS - ${new Date().getFullYear()}`, 42, isFirstPage ? 25 : 22);
+    };
+
+    drawHeader(true);
+
+    const checkPage = (need: number) => {
+      if (y + need > 275) {
+        doc.addPage();
+        y = 24;
+        drawHeader(false);
+        y += 6;
+        doc.setTextColor(0, 0, 0);
+      }
+    };
+
+    let y = 40;
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -262,10 +379,9 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
     y += 6;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    doc.text(`Filtros: Auditor [${rptAuditor}] | Município [${rptMuni}] | Status [${rptStatus}]`, 15, y);
-    doc.text(`Total de registros compilados: ${reportResults.length} do setor ${currentUser.sector}`, 135, y);
+    doc.text(`Total de registros compilados: ${reportResults.length} do setor ${currentUser.sector}`, 15, y);
     
-    y += 10;
+    y += 8;
     
     // Draw table headers
     doc.setFillColor(241, 245, 249);
@@ -273,110 +389,135 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.text("Portaria", 17, y + 5);
-    doc.text("Auditor Principal", 47, y + 5);
+    doc.text("Auditor Principal", 50, y + 5);
     doc.text("Início", 90, y + 5);
     doc.text("Término", 112, y + 5);
     doc.text("Jurisdicionados", 137, y + 5);
-    doc.text("Status", 173, y + 5);
+    doc.text("Docs", 172, y + 5);
+    doc.text("Status", 187, y + 5);
 
     y += 7;
     doc.setFont("helvetica", "normal");
 
     reportResults.forEach((p, idx) => {
-      if (y > 275) {
-        doc.addPage();
-        y = 20; // reset y
-        // reprint header briefly
-        doc.setFillColor(30, 41, 59);
-        doc.rect(0, 0, 210, 15, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.text("TCERR - Relatório de Portarias (cont.)", 32, 10);
-        y += 8;
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(0, 0, 0);
-      }
+      checkPage(10);
 
-      // Draw light strip line
       if (idx % 2 === 0) {
         doc.setFillColor(248, 250, 252);
         doc.rect(15, y, 180, 6.5, 'F');
       }
 
-      doc.setFontSize(8);
-      // Portaria
+      doc.setFontSize(7);
       doc.text(p.numero, 17, y + 4.5);
-      // Auditor
       const shortAuditor = p.auditorDesignado.nome.split(' ').slice(0, 2).join(' ');
-      doc.text(shortAuditor, 47, y + 4.5);
-      // Dates
+      doc.text(shortAuditor, 50, y + 4.5);
       doc.text(p.dataInicioPeríodo, 90, y + 4.5);
       doc.text(p.dataFimPeríodo, 112, y + 4.5);
-      // Count cities
-      doc.text(`${p.unidadesJurisdicionadas.length} municípios`, 137, y + 4.5);
-      // Status
-      doc.text(p.status, 173, y + 4.5);
-      
+      doc.text(`${p.unidadesJurisdicionadas.length}`, 137, y + 4.5);
+      const prodDocs = p.documentos.filter(d => d.tipo === 'produtividade').length;
+      doc.text(`${p.documentos.length} (${prodDocs} prod)`, 172, y + 4.5);
+      doc.text(p.status, 187, y + 4.5);
       y += 6.5;
     });
 
-    // Cumprimento de Prazos section
-    y += 10;
-    doc.setFillColor(241, 245, 249);
-    doc.rect(15, y, 180, 0.1, 'F');
-    y += 6;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("Cumprimento de Prazos", 15, y);
-    y += 8;
+    y += 4;
 
-    const bars = [
-      { label: 'Concluídas\nno prazo', value: timingStatistics.concluidoNoPrazo, color: [16, 185, 129] },
-      { label: 'Concluídas\ncom atraso', value: timingStatistics.concluidoComAtraso, color: [245, 158, 11] },
-      { label: 'Ativas\nem dia', value: timingStatistics.ativasNoPrazo, color: [59, 130, 246] },
-      { label: 'Ativas\nem atraso', value: timingStatistics.ativasEmAtraso, color: [239, 68, 68] },
-    ];
-    const maxVal = Math.max(...bars.map(b => b.value), 1);
-    const chartX = 20;
-    const chartY = y;
-    const barWidth = 28;
-    const gap = 10;
-    const maxBarHeight = 50;
-
-    bars.forEach((b, i) => {
-      const x = chartX + i * (barWidth + gap);
-      const barH = maxVal > 0 ? (b.value / maxVal) * maxBarHeight : 0;
-      const barTop = chartY + maxBarHeight - barH;
-
-      // Draw bar
-      doc.setFillColor(b.color[0], b.color[1], b.color[2]);
-      doc.rect(x, barTop, barWidth, barH, 'F');
-
-      // Value on top
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.text(String(b.value), x + barWidth / 2, barTop - 2, { align: 'center' });
-
-      // Label below
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6);
-      const lines = b.label.split('\n');
-      lines.forEach((l, li) => {
-        doc.text(l, x + barWidth / 2, chartY + maxBarHeight + 4 + li * 4, { align: 'center' });
-      });
+    // ---- PER-AUDITOR DETAILED SECTION ----
+    const auditorGroups: Record<string, Portaria[]> = {};
+    reportResults.forEach(p => {
+      const name = p.auditorDesignado.nome;
+      if (!auditorGroups[name]) auditorGroups[name] = [];
+      auditorGroups[name].push(p);
     });
 
-    y += maxBarHeight + 28;
+    Object.entries(auditorGroups).forEach(([auditorName, portarias]) => {
+      y += 15;
+      checkPage(60);
 
-    // Footer line
-    if (y > 250) {
-      doc.addPage();
-      y = 30;
-    } else {
-      y += 12;
-    }
+      doc.setFillColor(30, 41, 59);
+      doc.rect(15, y - 4, 180, 10, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`Auditor: ${auditorName}`, 20, y + 2);
+      doc.setFontSize(7);
+      const totalProdDoc = portarias.reduce((sum, p) => sum + p.documentos.filter(d => d.tipo === 'produtividade').length, 0);
+      doc.text(`Total docs produtividade: ${totalProdDoc} | Portarias: ${portarias.length}`, 120, y + 2);
+      y += 10;
+      doc.setTextColor(0, 0, 0);
 
+      // Per-auditor timeline table
+      doc.setFillColor(241, 245, 249);
+      doc.rect(15, y, 180, 7, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text("Portaria", 17, y + 5);
+      doc.text("Objetivo", 47, y + 5);
+      doc.text("Início", 107, y + 5);
+      doc.text("Fim", 127, y + 5);
+      doc.text("Fase Atual", 147, y + 5);
+      doc.text("Status", 175, y + 5);
+      y += 7;
+      doc.setFont("helvetica", "normal");
+
+      portarias.forEach((p, i) => {
+        checkPage(10);
+        if (i % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(15, y, 180, 6.5, 'F');
+        }
+        const activeFase = p.cronograma.find(f => f.status === 'Em andamento') || p.cronograma.find(f => f.status === 'Pendente') || p.cronograma[p.cronograma.length - 1];
+        doc.setFontSize(6.5);
+        doc.text(p.numero, 17, y + 4.5);
+        doc.text(p.objetivo.slice(0, 50), 47, y + 4.5);
+        doc.text(p.dataInicioPeríodo, 107, y + 4.5);
+        doc.text(p.dataFimPeríodo, 127, y + 4.5);
+        doc.text(activeFase?.nome || '-', 147, y + 4.5);
+        doc.text(p.status, 175, y + 4.5);
+        y += 6.5;
+      });
+
+      // Productivity docs list
+      const prodDocsList = portarias.flatMap(p =>
+        p.documentos.filter(d => d.tipo === 'produtividade').map(d => ({
+          ...d,
+          portariaNumero: p.numero,
+          tematicasStr: (p.tematicas || []).map(t => t.nome).join(', ')
+        }))
+      );
+      if (prodDocsList.length > 0) {
+        y += 6;
+        checkPage(10 + prodDocsList.length * 6);
+        doc.setFillColor(241, 245, 249);
+        doc.rect(15, y, 180, 7, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.text("Documentos de Produtividade", 17, y + 5);
+        doc.text("Portaria", 120, y + 5);
+        doc.text("Temáticas", 155, y + 5);
+        y += 7;
+        doc.setFont("helvetica", "normal");
+        prodDocsList.forEach((d, i) => {
+          checkPage(8);
+          if (i % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(15, y, 180, 6, 'F');
+          }
+          doc.setFontSize(6);
+          doc.text(d.nome.slice(0, 40), 17, y + 3);
+          doc.text(d.dataUpload || '-', 17, y + 5);
+          doc.text(d.portariaNumero, 120, y + 4);
+          doc.text(d.tematicasStr.slice(0, 20), 155, y + 4);
+          y += 7;
+        });
+      }
+
+      y += 4;
+    });
+
+    // Footer
+    y += 10;
+    checkPage(10);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
     doc.setTextColor(100, 100, 100);
@@ -551,7 +692,7 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
           <Filter className="h-4.5 w-4.5 text-blue-600" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5 text-xs text-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3.5 text-xs text-gray-700">
           <div>
             <label className="block text-[11px] text-gray-500 mb-1">Auditor</label>
             <select
@@ -596,6 +737,20 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
           </div>
 
           <div>
+            <label className="block text-[11px] text-gray-500 mb-1">Campo Temático</label>
+            <select
+              value={rptTematica}
+              onChange={(e) => setRptTematica(e.target.value)}
+              className="w-full rounded-md border border-gray-250 p-1.5 focus:border-blue-600"
+            >
+              <option value="Todas">Todas as Temáticas</option>
+              {Array.from(new Set(sectorPortarias.flatMap(p => (p.tematicas || []).map(t => t.nome)))).map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block text-[11px] text-gray-500 mb-1">Portarias a partir de:</label>
             <input
               type="date"
@@ -626,13 +781,15 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
                 <th className="p-3 hidden sm:table-cell">Início</th>
                 <th className="p-3 hidden sm:table-cell">Fim</th>
                 <th className="p-3 hidden md:table-cell">Municípios</th>
+                <th className="p-3 hidden lg:table-cell">Temáticas</th>
+                <th className="p-3">Docs</th>
                 <th className="p-3">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-gray-800">
               {reportResults.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-6 text-gray-400">
+                  <td colSpan={8} className="text-center py-6 text-gray-400">
                     Nenhum registro localizado para o cruzamento de filtros sugerido.
                   </td>
                 </tr>
@@ -645,7 +802,23 @@ export default function ReportsView({ currentUser, portarias }: ReportsViewProps
                     <td className="p-3 font-mono hidden sm:table-cell">{p.dataFimPeríodo}</td>
                     <td className="p-3 hidden md:table-cell">
                       <span className="line-clamp-1" title={p.unidadesJurisdicionadas.join(', ')}>
-                        {p.unidadesJurisdicionadas.length} cidades ({p.unidadesJurisdicionadas.map(m => m.replace('Prefeitura Municipal de ', '')).slice(0, 3).join(', ')}...)
+                        {p.unidadesJurisdicionadas.length} cidades
+                      </span>
+                    </td>
+                    <td className="p-3 hidden lg:table-cell">
+                      <div className="flex flex-wrap gap-0.5">
+                        {(p.tematicas || []).slice(0, 2).map(t => (
+                          <span key={t.id} className="inline-flex items-center space-x-0.5 rounded-full bg-blue-50 text-blue-700 px-1.5 py-0.5 text-[8px] font-medium border border-blue-100">
+                            <Tag className="h-2 w-2" />
+                            <span>{t.nome}</span>
+                          </span>
+                        ))}
+                        {(p.tematicas || []).length > 2 && <span className="text-[8px] text-gray-400">+{p.tematicas.length - 2}</span>}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span className="text-[10px]" title={`${p.documentos.filter(d => d.tipo === 'informacao').length} info / ${p.documentos.filter(d => d.tipo === 'produtividade').length} prod`}>
+                        {p.documentos.filter(d => d.tipo === 'produtividade').length}/{p.documentos.length}
                       </span>
                     </td>
                     <td className="p-3 font-bold uppercase text-[10px]">

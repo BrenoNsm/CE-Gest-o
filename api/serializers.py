@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification, BoardBlock, BoardNote
+from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Tematica, Documento, Comentario, AuditLog, LogExcluido, SystemNotification, BoardBlock, BoardNote
 
 # -----------------------------------------------------------------------------
 # 1. Serializers Simples e Aninhados
@@ -83,6 +83,13 @@ class FaseSerializer(serializers.ModelSerializer):
         model = Fase
         fields = ['id', 'nome', 'dataInicio', 'dataFim', 'duracaoDiasUteis', 'status']
 
+class TematicaSerializer(serializers.ModelSerializer):
+    id = serializers.CharField()
+
+    class Meta:
+        model = Tematica
+        fields = ['id', 'nome', 'sector']
+
 class DocumentoSerializer(serializers.ModelSerializer):
     id = serializers.CharField()
     dataUpload = serializers.CharField(source='data_upload')
@@ -90,7 +97,7 @@ class DocumentoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Documento
-        fields = ['id', 'nome', 'dataUpload', 'tamanho', 'uploadedBy']
+        fields = ['id', 'nome', 'dataUpload', 'tamanho', 'uploadedBy', 'tipo']
 
 class ComentarioSerializer(serializers.ModelSerializer):
     id = serializers.CharField()
@@ -118,6 +125,7 @@ class PortariaSerializer(serializers.ModelSerializer):
     cronograma = FaseSerializer(many=True, read_only=True)
     documentos = DocumentoSerializer(many=True, read_only=True)
     comentarios = ComentarioSerializer(many=True, read_only=True)
+    tematicas = TematicaSerializer(many=True, read_only=True)
 
     class Meta:
         model = Portaria
@@ -125,7 +133,7 @@ class PortariaSerializer(serializers.ModelSerializer):
             'id', 'numero', 'tipo', 'dataPublicacao', 'dataInicioPeríodo', 'dataFimPeríodo',
             'fundamentacao', 'objetivo', 'status', 'sector', 'unidadesJurisdicionadas',
             'concluidoNoPrazo', 'tempoAtrasoDias',
-            'auditorDesignado', 'supervisor', 'cronograma', 'documentos', 'comentarios'
+            'auditorDesignado', 'supervisor', 'cronograma', 'documentos', 'comentarios', 'tematicas'
         ]
 
     def get_auditorDesignado(self, obj):
@@ -148,6 +156,7 @@ class PortariaSerializer(serializers.ModelSerializer):
         self._cronograma = data.pop('cronograma', [])
         self._documentos = data.pop('documentos', [])
         self._comentarios = data.pop('comentarios', [])
+        self._tematicas = data.pop('tematicas', [])
         return super().to_internal_value(data)
 
     def create(self, validated_data):
@@ -182,7 +191,8 @@ class PortariaSerializer(serializers.ModelSerializer):
                 nome=d.get('nome'),
                 data_upload=d.get('dataUpload'),
                 tamanho=d.get('tamanho'),
-                uploaded_by=d.get('uploadedBy')
+                uploaded_by=d.get('uploadedBy'),
+                tipo=d.get('tipo', 'informacao')
             )
         for c in self._comentarios:
             Comentario.objects.create(
@@ -193,6 +203,10 @@ class PortariaSerializer(serializers.ModelSerializer):
                 texto=c.get('texto'),
                 data_hora=c.get('dataHora')
             )
+        if self._tematicas:
+            for t in self._tematicas:
+                if isinstance(t, dict) and 'id' in t:
+                    portaria.tematicas.add(t['id'])
         return portaria
 
     def update(self, instance, validated_data):
@@ -235,7 +249,8 @@ class PortariaSerializer(serializers.ModelSerializer):
                     'nome': d.get('nome'),
                     'data_upload': d.get('dataUpload'),
                     'tamanho': d.get('tamanho'),
-                    'uploaded_by': d.get('uploadedBy')
+                    'uploaded_by': d.get('uploadedBy'),
+                    'tipo': d.get('tipo', 'informacao')
                 }
                 if d.get('id'):
                     Documento.objects.update_or_create(id=d['id'], portaria=instance, defaults=doc_data)
@@ -255,6 +270,13 @@ class PortariaSerializer(serializers.ModelSerializer):
                     Comentario.objects.update_or_create(id=c['id'], portaria=instance, defaults=com_data)
                 else:
                     Comentario.objects.create(portaria=instance, **com_data)
+                
+        # Atualiza Temáticas
+        if self._tematicas is not None:
+            instance.tematicas.clear()
+            for t in self._tematicas:
+                if isinstance(t, dict) and 'id' in t:
+                    instance.tematicas.add(t['id'])
                 
         return instance
 

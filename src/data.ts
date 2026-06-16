@@ -154,6 +154,7 @@ export const INITIAL_PORTARIAS: Portaria[] = [
         status: 'Pendente'
       }
     ],
+    tematicas: [],
     supervisor: {
       nome: 'Valdélia Vieira dos Santos Lena',
       cargo: 'Secretária de SEAMP',
@@ -165,14 +166,16 @@ export const INITIAL_PORTARIAS: Portaria[] = [
         nome: 'Portaria_016_2026_Assinada.pdf',
         dataUpload: '2026-05-05',
         tamanho: '1.4 MB',
-        uploadedBy: 'Valdélia Vieira dos Santos Lena'
+        uploadedBy: 'Valdélia Vieira dos Santos Lena',
+        tipo: 'informacao'
       },
       {
         id: 'doc-2',
         nome: 'Diretriz_Defesa_Civil_Municipal.docx',
         dataUpload: '2026-05-10',
         tamanho: '420 KB',
-        uploadedBy: 'Carlos Heider da Silva Souza'
+        uploadedBy: 'Carlos Heider da Silva Souza',
+        tipo: 'informacao'
       }
     ],
     comentarios: [
@@ -240,6 +243,7 @@ export const INITIAL_PORTARIAS: Portaria[] = [
         status: 'Pendente'
       }
     ],
+    tematicas: [],
     supervisor: {
       nome: 'Valdélia Vieira dos Santos Lena',
       cargo: 'Secretária de SEAMP',
@@ -251,7 +255,8 @@ export const INITIAL_PORTARIAS: Portaria[] = [
         nome: 'Portaria_021_DOU.pdf',
         dataUpload: '2026-06-01',
         tamanho: '950 KB',
-        uploadedBy: 'Valdélia Vieira dos Santos Lena'
+        uploadedBy: 'Valdélia Vieira dos Santos Lena',
+        tipo: 'informacao'
       }
     ],
     comentarios: [
@@ -312,6 +317,7 @@ export const INITIAL_PORTARIAS: Portaria[] = [
         status: 'Concluída'
       }
     ],
+    tematicas: [],
     supervisor: {
       nome: 'Valdélia Vieira dos Santos Lena',
       cargo: 'Secretária de SEAMP',
@@ -323,7 +329,8 @@ export const INITIAL_PORTARIAS: Portaria[] = [
         nome: 'Relatorio_Conselhos_Saude_Aprovado.pdf',
         dataUpload: '2026-04-28',
         tamanho: '2.8 MB',
-        uploadedBy: 'Carlos Heider da Silva Souza'
+        uploadedBy: 'Carlos Heider da Silva Souza',
+        tipo: 'informacao'
       }
     ],
     comentarios: [
@@ -382,6 +389,7 @@ export const INITIAL_PORTARIAS: Portaria[] = [
         status: 'Pendente'
       }
     ],
+    tematicas: [],
     supervisor: {
       nome: 'Valdélia Vieira dos Santos Lena',
       cargo: 'Secretária de SEAMP',
@@ -445,6 +453,7 @@ export const INITIAL_PORTARIAS: Portaria[] = [
         status: 'Pendente'
       }
     ],
+    tematicas: [],
     supervisor: {
       nome: 'Dr. Roberto Mendes Albuquerque',
       cargo: 'Secretário Geral da SECGE',

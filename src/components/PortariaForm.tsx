@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, Portaria, Fase } from '../types';
+import { User, Portaria, Fase, Tematica } from '../types';
 import { MUNICIPIOS_RR, calcularDiasUteis } from '../data';
-import { Save, X, Plus, Trash2, Calendar, FileText, UserCheck, CheckSquare, RefreshCw, AlertTriangle, MapPin } from 'lucide-react';
+import { Save, X, Plus, Trash2, Calendar, FileText, UserCheck, CheckSquare, RefreshCw, AlertTriangle, MapPin, Tag, Search } from 'lucide-react';
 
 interface PortariaFormProps {
   currentUser: User;
@@ -9,6 +9,8 @@ interface PortariaFormProps {
   editingPortaria: Portaria | null;
   onSave: (portaria: Portaria) => void;
   onCancel: () => void;
+  tematicas: Tematica[];
+  setTematicas: React.Dispatch<React.SetStateAction<Tematica[]>>;
 }
 
 const JURISDICIONADAS = [
@@ -16,7 +18,7 @@ const JURISDICIONADAS = [
   ...MUNICIPIOS_RR
 ];
 
-export default function PortariaForm({ currentUser, users, editingPortaria, onSave, onCancel }: PortariaFormProps) {
+export default function PortariaForm({ currentUser, users, editingPortaria, onSave, onCancel, tematicas, setTematicas }: PortariaFormProps) {
   // General Fields
   const [numero, setNumero] = useState('');
   const [tipo, setTipo] = useState<'Portaria de Fiscalização' | 'Ordem de Serviço' | 'Instrução de Serviço'>('Portaria de Fiscalização');
@@ -47,6 +49,12 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
     id: '', nome: 'Relatório', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente'
   });
 
+  // Tematicas State
+  const [selectedTematicas, setSelectedTematicas] = useState<Tematica[]>([]);
+  const [tematicaSearch, setTematicaSearch] = useState('');
+  const [showTematicaDropdown, setShowTematicaDropdown] = useState(false);
+  const [newTematicaNome, setNewTematicaNome] = useState('');
+
   // All users in the same sector can be auditors or supervisors
   const listSectoredUsers = users.filter(u => u.sector === currentUser.sector);
 
@@ -68,6 +76,7 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
       setAuditorMatricula(editingPortaria.auditorDesignado.matricula);
       setUnidades(editingPortaria.unidadesJurisdicionadas);
       setSupervisorName(editingPortaria.supervisor.nome);
+      setSelectedTematicas(editingPortaria.tematicas || []);
 
       const fPlan = editingPortaria.cronograma.find(f => f.nome === 'Planejamento');
       const fExec = editingPortaria.cronograma.find(f => f.nome === 'Execução');
@@ -89,6 +98,7 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
       setAuditorMatricula('');
       setSupervisorName('');
       setUnidades([]);
+      setSelectedTematicas([]);
 
       // Reset phases to empty
       setFasePlanejamento({ id: '', nome: 'Planejamento', dataInicio: '', dataFim: '', duracaoDiasUteis: 0, status: 'Pendente' });
@@ -157,6 +167,55 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
       const sortedD = [...dates].sort();
       setDataInicioPeríodo(sortedD[0]);
       setDataFimPeríodo(sortedD[sortedD.length - 1]);
+    }
+  };
+
+  // Filter tematicas by sector and search
+  const sectorTematicas = tematicas.filter(t => t.sector === currentUser.sector);
+  const filteredTematicas = sectorTematicas.filter(t =>
+    t.nome.toLowerCase().includes(tematicaSearch.toLowerCase()) &&
+    !selectedTematicas.some(st => st.id === t.id)
+  );
+
+  const handleToggleTematica = (t: Tematica) => {
+    if (selectedTematicas.some(st => st.id === t.id)) {
+      setSelectedTematicas(selectedTematicas.filter(st => st.id !== t.id));
+    } else {
+      setSelectedTematicas([...selectedTematicas, t]);
+    }
+    setTematicaSearch('');
+  };
+
+  const handleCreateTematica = async () => {
+    const nome = newTematicaNome.trim();
+    if (!nome) return;
+    const exists = tematicas.some(t => t.nome === nome && t.sector === currentUser.sector);
+    if (exists) {
+      alert('Já existe uma temática com este nome no setor.');
+      return;
+    }
+    const newTematica: Tematica = {
+      id: 'tem-' + Date.now(),
+      nome,
+      sector: currentUser.sector
+    };
+    try {
+      const res = await fetch('/api/tematicas/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTematica)
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setTematicas(prev => [...prev, created]);
+        setSelectedTematicas([...selectedTematicas, created]);
+        setNewTematicaNome('');
+        setShowTematicaDropdown(false);
+      } else {
+        alert('Erro ao criar temática.');
+      }
+    } catch {
+      alert('Erro ao criar temática.');
     }
   };
 
@@ -232,6 +291,7 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
         cargo: assignedSup.cargo,
         sector: currentUser.sector
       },
+      tematicas: selectedTematicas,
       documentos: editingPortaria?.documentos || [],
       comentarios: editingPortaria?.comentarios || []
     };
@@ -477,6 +537,115 @@ export default function PortariaForm({ currentUser, users, editingPortaria, onSa
               );
             })}
           </div>
+        </div>
+
+        {/* Bloco 3.5: Temáticas (Tags) */}
+        <div className="bg-slate-50/50 rounded-lg p-5 border border-gray-100 space-y-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-900 border-b border-blue-50 pb-1">3.1. Campo Temático (Opcional)</p>
+          <p className="text-[10px] text-gray-500 -mt-2">Selecione ou crie temáticas para classificar esta portaria. Ex: Merenda Escolar, Educação, Saúde</p>
+
+          <div className="relative">
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar temática..."
+                  value={tematicaSearch}
+                  onChange={(e) => { setTematicaSearch(e.target.value); setShowTematicaDropdown(true); }}
+                  onFocus={() => setShowTematicaDropdown(true)}
+                  className="w-full rounded-md border border-gray-200 bg-white pl-8 pr-3 py-2 text-xs focus:border-blue-600 focus:outline-hidden"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { setNewTematicaNome(tematicaSearch); setShowTematicaDropdown(false); }}
+                className="inline-flex items-center space-x-1 rounded-md bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Criar</span>
+              </button>
+            </div>
+
+            {showTematicaDropdown && (tematicaSearch || filteredTematicas.length > 0) && (
+              <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+                {filteredTematicas.length === 0 && tematicaSearch && (
+                  <div className="p-3 text-xs text-gray-500">
+                    Nenhuma temática encontrada. 
+                    <button
+                      type="button"
+                      onClick={handleCreateTematica}
+                      className="ml-1 font-semibold text-emerald-600 hover:underline"
+                    >
+                      Criar "{tematicaSearch}"
+                    </button>
+                  </div>
+                )}
+                {filteredTematicas.map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleToggleTematica(t)}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 flex items-center space-x-2"
+                  >
+                    <Tag className="h-3 w-3 text-blue-500" />
+                    <span>{t.nome}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {newTematicaNome && showTematicaDropdown === false && (
+              <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-xs font-semibold text-emerald-800 mb-2">Criar nova temática: "{newTematicaNome}"</p>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={newTematicaNome}
+                    onChange={(e) => setNewTematicaNome(e.target.value)}
+                    placeholder="Nome da temática"
+                    className="flex-1 rounded-md border border-emerald-200 bg-white px-3 py-1.5 text-xs focus:border-emerald-500 focus:outline-hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateTematica}
+                    className="rounded-md bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 text-xs font-bold"
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setNewTematicaNome(''); setTematicaSearch(''); }}
+                    className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Selected tematicas as tags */}
+          {selectedTematicas.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {selectedTematicas.map(t => (
+                <span
+                  key={t.id}
+                  className="inline-flex items-center space-x-1 rounded-full bg-blue-100 text-blue-800 px-2.5 py-1 text-[10px] font-semibold border border-blue-200"
+                >
+                  <Tag className="h-3 w-3" />
+                  <span>{t.nome}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTematica(t)}
+                    className="ml-0.5 rounded-full hover:bg-blue-200 p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Bloco 4: Cronograma de Fases (Tabela Editável) */}

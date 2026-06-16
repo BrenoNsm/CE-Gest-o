@@ -81,6 +81,7 @@ class Portaria(models.Model):
     supervisor_sector = models.CharField(max_length=50)
     
     unidades_jurisdicionadas = models.JSONField(default=list)
+    tematicas = models.ManyToManyField('Tematica', related_name='portarias', blank=True)
     
     concluido_no_prazo = models.BooleanField(default=True)
     tempo_atraso_dias = models.IntegerField(default=0)
@@ -105,6 +106,18 @@ class Fase(models.Model):
         return f"{self.portaria.numero} - {self.nome}"
 
 
+class Tematica(models.Model):
+    id = models.CharField(max_length=50, primary_key=True)
+    nome = models.CharField(max_length=255)
+    sector = models.CharField(max_length=50, db_index=True)
+
+    class Meta:
+        unique_together = ('nome', 'sector')
+
+    def __str__(self):
+        return self.nome
+
+
 class Documento(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
     portaria = models.ForeignKey(Portaria, on_delete=models.CASCADE, related_name='documentos')
@@ -112,6 +125,7 @@ class Documento(models.Model):
     data_upload = models.CharField(max_length=50)
     tamanho = models.CharField(max_length=50)
     uploaded_by = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=50, default='informacao')
 
     def __str__(self):
         return self.nome

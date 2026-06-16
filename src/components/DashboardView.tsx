@@ -1,8 +1,6 @@
 import React, { useMemo } from 'react';
-import { User, Portaria, Fase } from '../types';
-import { calcularDiasUteis } from '../data';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Clock, AlertTriangle, CheckCircle, Flame, Calendar, UserCheck, Play, ArrowRight, Info } from 'lucide-react';
+import { User, Portaria } from '../types';
+import { Clock, AlertTriangle, CheckCircle, Flame, Calendar, Play, ArrowRight, Info } from 'lucide-react';
 
 interface DashboardViewProps {
   currentUser: User;
@@ -269,48 +267,54 @@ export default function DashboardView({ currentUser, portarias, onSelectPortaria
               Nenhum auditor técnico com portarias abertas neste setor.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              {/* Recharts Bar */}
-              <div className="h-52 md:col-span-3">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ fontSize: '11px', fontFamily: 'sans-serif', borderRadius: '6px' }} />
-                    <Bar dataKey="quantidade" radius={[4, 4, 0, 0]} maxBarSize={35}>
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.quantidade >= 3 ? '#e11d48' : '#3b82f6'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="space-y-3">
+              {/* Horizontal bars by auditor */}
+              {auditoresWorkload.map(a => {
+                const badge = getLoadBadge(a.totalAtivas);
+                const maxLoad = Math.max(...auditoresWorkload.map(x => x.totalAtivas), 1);
+                const pct = Math.round((a.totalAtivas / Math.max(maxLoad, 4)) * 100);
+                const dates = a.portariasList.map(p => new Date(p.dataFimPeríodo).getTime());
+                const maxDate = dates.length > 0 ? new Date(Math.max(...dates)).toLocaleDateString('pt-BR') : 'N/A';
+                const barColor = a.totalAtivas >= 5 ? 'bg-red-500' : a.totalAtivas >= 3 ? 'bg-amber-500' : 'bg-blue-500';
 
-              {/* Text list and indicators */}
-              <div className="md:col-span-2 space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Indicadores de Acúmulo</p>
-                {auditoresWorkload.map(a => {
-                  const badge = getLoadBadge(a.totalAtivas);
-                  // Find furthest date
-                  const dates = a.portariasList.map(p => new Date(p.dataFimPeríodo).getTime());
-                  const maxDate = dates.length > 0 ? new Date(Math.max(...dates)).toLocaleDateString('pt-BR') : 'N/A';
-
-                  return (
-                    <div key={a.matricula} className="rounded-md border border-gray-100 p-2 text-xs hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-gray-800 leading-none">{a.nome.split(' ').slice(0,2).join(' ')}</span>
-                        <span className={`rounded-sm px-1.5 py-0.2 text-[8px] font-bold border ${badge.cls}`}>
-                          {badge.label}
-                        </span>
+                return (
+                  <div key={a.matricula} className="rounded-lg border border-gray-100 bg-white p-3 hover:border-gray-200 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-xs shrink-0">
+                          {a.nome.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-800 truncate">{a.nome}</p>
+                          <p className="text-[9px] text-gray-400 font-mono">Mat. {a.matricula}</p>
+                        </div>
                       </div>
-                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-gray-500">
-                        <span>Ativas: <strong className="text-gray-900">{a.totalAtivas}</strong></span>
-                        <span>Disp. Estimada: <strong className="text-gray-950 font-mono">{maxDate}</strong></span>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold border ${badge.cls}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-gray-500">
+                          <strong className="text-gray-900 text-sm">{a.totalAtivas}</strong> portarias ativas
+                        </span>
+                        <span className="text-gray-400 font-mono">Previsão: {maxDate}</span>
+                      </div>
+                      <div className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[9px] text-gray-400">
+                        <span>Limite recomendado: 4 ativas</span>
+                        <span>{a.portariasList.length} portaria(s)</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

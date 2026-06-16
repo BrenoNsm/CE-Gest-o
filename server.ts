@@ -135,13 +135,25 @@ const Fase = sequelize.define('Fase', {
   status: { type: DataTypes.STRING, allowNull: false } // 'Pendente' | 'Em andamento' | 'Concluída'
 });
 
+const Tematica = sequelize.define('Tematica', {
+  id: { type: DataTypes.STRING, primaryKey: true },
+  nome: { type: DataTypes.STRING, allowNull: false },
+  sector: { type: DataTypes.STRING, allowNull: false }
+});
+
+const PortariaTematica = sequelize.define('PortariaTematica', {
+  portariaId: { type: DataTypes.STRING, allowNull: false },
+  tematicaId: { type: DataTypes.STRING, allowNull: false }
+});
+
 const Documento = sequelize.define('Documento', {
   id: { type: DataTypes.STRING, primaryKey: true },
   portariaId: { type: DataTypes.STRING, allowNull: false },
   nome: { type: DataTypes.STRING, allowNull: false },
   dataUpload: { type: DataTypes.STRING, allowNull: false },
   tamanho: { type: DataTypes.STRING, allowNull: false },
-  uploadedBy: { type: DataTypes.STRING, allowNull: false }
+  uploadedBy: { type: DataTypes.STRING, allowNull: false },
+  tipo: { type: DataTypes.STRING, defaultValue: 'informacao' }
 });
 
 const Comentario = sequelize.define('Comentario', {
@@ -195,6 +207,10 @@ Documento.belongsTo(Portaria, { foreignKey: 'portariaId' });
 
 Portaria.hasMany(Comentario, { as: 'comentarios', foreignKey: 'portariaId', onDelete: 'CASCADE' });
 Comentario.belongsTo(Portaria, { foreignKey: 'portariaId' });
+
+// Tematica associations
+Portaria.belongsToMany(Tematica, { through: PortariaTematica, as: 'tematicas', foreignKey: 'portariaId' });
+Tematica.belongsToMany(Portaria, { through: PortariaTematica, as: 'portarias', foreignKey: 'tematicaId' });
 
 // Seed Data definition
 const MUNICIPIOS_SEED = [

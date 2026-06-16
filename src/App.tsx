@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Portaria, AuditLog, LogExcluido, SystemNotification } from './types';
+import { User, Portaria, AuditLog, LogExcluido, SystemNotification, Tematica } from './types';
 // Components
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -12,6 +12,7 @@ import CalendarView from './components/CalendarView';
 import VacationsView from './components/VacationsView';
 import InfoBoardView from './components/InfoBoardView';
 import ChefeOverview from './components/ChefeOverview';
+import ConcluidasView from './components/ConcluidasView';
 import PortariaDetailDrawer from './components/PortariaDetailDrawer';
 // Icons
 import { Award, ShieldCheck, LogIn, Lock, User as UserIcon, Building2, HelpCircle, AlertOctagon } from 'lucide-react';
@@ -32,10 +33,11 @@ export default function App() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [logsExcluidos, setLogsExcluidos] = useState<LogExcluido[]>([]);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+  const [tematicas, setTematicas] = useState<Tematica[]>([]);
   const [loading, setLoading] = useState(true);
 
   // UI/Navigation States
-  const [activeView, setActiveView] = useState<'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'portarias' | 'relatorios' | 'logs' | 'calendar' | 'vacations' | 'infoboard' | 'visaogeral' | 'concluidas'>('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPortaria, setEditingPortaria] = useState<Portaria | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -58,18 +60,20 @@ export default function App() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [rUsers, rPortarias, rLogs, rLogsExcluidos, rNotifs] = await Promise.all([
+      const [rUsers, rPortarias, rLogs, rLogsExcluidos, rNotifs, rTematicas] = await Promise.all([
         fetch('/api/users/').then(res => res.json()),
         fetch('/api/portarias/').then(res => res.json()),
         fetch('/api/logs/').then(res => res.json()),
         fetch('/api/logs-excluidos/').then(res => res.json()),
         fetch('/api/notifications/').then(res => res.json()),
+        fetch('/api/tematicas/').then(res => res.json()),
       ]);
       setUsers(rUsers);
       setPortarias(rPortarias);
       setLogs(rLogs);
       setLogsExcluidos(rLogsExcluidos);
       setNotifications(rNotifs);
+      setTematicas(rTematicas);
     } catch (err) {
       console.error("Erro ao carregar dados relacionais do servidor local:", err);
     } finally {
@@ -415,6 +419,59 @@ export default function App() {
     setSelectedPortariaExternal(p);
   };
 
+  const handleReopenPortaria = async (id: string) => {
+    if (!currentUser) return;
+    const target = portarias.find(p => p.id === id);
+    if (!target) return;
+    if (!window.confirm(`Reabrir a Portaria ${target.numero}? Os prazos serão reiniciados.`)) return;
+
+    const reopened: Portaria = {
+      ...target,
+      status: 'Ativa' as const,
+      cronograma: target.cronograma.map(f => ({
+        ...f,
+        status: 'Pendente' as const,
+        dataFim: '',
+      })),
+    };
+
+    try {
+      const res = await fetch(`/api/portarias/${id}/`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reopened),
+      });
+
+      if (!res.ok) throw new Error('Erro ao reabrir portaria.');
+
+      const saved = await res.json();
+      setPortarias(prev => prev.map(p => p.id === saved.id ? saved : p));
+
+      const logEntry = {
+        id: 'log-' + Date.now(),
+        portariaId: saved.id,
+        numeroPortaria: saved.numero,
+        usuario: `${currentUser.nome} (Mat: ${currentUser.matricula})`,
+        dataHora: new Date().toISOString(),
+        acao: 'Reabertura de Portaria',
+        detalhes: `Reabriu a portaria ${saved.numero} que estava concluída. Prazos reiniciados.`,
+        sector: currentUser.sector,
+      };
+
+      const logRes = await fetch('/api/logs/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logEntry),
+      });
+      if (logRes.ok) {
+        const logged = await logRes.json();
+        setLogs(prev => [...prev, logged]);
+      }
+    } catch (err: any) {
+      alert('Erro ao reabrir portaria: ' + err.message);
+    }
+  };
+
   const renderMainContent = () => {
     if (!currentUser) return null;
     switch (activeView) {
@@ -424,11 +481,11 @@ export default function App() {
         return <DashboardView currentUser={currentUser} portarias={portarias} onSelectPortaria={handleNavigateToPortariaDetail} />;
       case 'portarias':
         if (isFormOpen) {
-          return <PortariaForm currentUser={currentUser} users={users} editingPortaria={editingPortaria} onSave={handleSavePortaria} onCancel={() => { setIsFormOpen(false); setEditingPortaria(null); }} />;
+          return <PortariaForm currentUser={currentUser} users={users} editingPortaria={editingPortaria} onSave={handleSavePortaria} onCancel={() => { setIsFormOpen(false); setEditingPortaria(null); }} tematicas={tematicas} setTematicas={setTematicas} />;
         }
-        return <PortariaList currentUser={currentUser} portarias={portarias} onEdit={(p) => { setEditingPortaria(p); setIsFormOpen(true); }} onDelete={handleDeletePortaria} onUpdatePortaria={handleUpdatePortariaInline} onAddNewClick={() => { setEditingPortaria(null); setIsFormOpen(true); }} selectedPortariaExternal={selectedPortariaExternal} setSelectedPortariaExternal={setSelectedPortariaExternal} />;
+        return <PortariaList currentUser={currentUser} portarias={portarias} onEdit={(p) => { setEditingPortaria(p); setIsFormOpen(true); }} onDelete={handleDeletePortaria} onUpdatePortaria={handleUpdatePortariaInline} onAddNewClick={() => { setEditingPortaria(null); setIsFormOpen(true); }} selectedPortariaExternal={selectedPortariaExternal} setSelectedPortariaExternal={setSelectedPortariaExternal} tematicas={tematicas} />;
       case 'relatorios':
-        return <ReportsView currentUser={currentUser} portarias={portarias} />;
+        return <ReportsView currentUser={currentUser} portarias={portarias} tematicas={tematicas} />;
       case 'logs':
         return <LogsView currentUser={currentUser} logs={logs} logsExcluidos={logsExcluidos} />;
       case 'calendar':
@@ -437,6 +494,8 @@ export default function App() {
         return <VacationsView currentUser={currentUser} users={users} onAddVacation={handleAddVacation} onDeleteVacation={handleDeleteVacation} />;
       case 'infoboard':
         return <InfoBoardView currentUser={currentUser} />;
+      case 'concluidas':
+        return <ConcluidasView currentUser={currentUser} portarias={portarias} users={users} onReopen={handleReopenPortaria} tematicas={tematicas} />;
       default:
         return null;
     }

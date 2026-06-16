@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin
-from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Documento, Comentario, AuditLog, LogExcluido, SystemNotification, BoardBlock, BoardNote
+from .models import Cargo, Setor, User, Ferias, Portaria, Fase, Tematica, Documento, Comentario, AuditLog, LogExcluido, SystemNotification, BoardBlock, BoardNote
 
 @admin.register(Cargo)
 class CargoAdmin(admin.ModelAdmin):
@@ -122,6 +122,12 @@ class SystemNotificationAdmin(admin.ModelAdmin):
     list_filter = ('sector', 'tipo', 'lida')
     search_fields = ('titulo', 'mensagem')
     ordering = ('-data_hora',)
+
+@admin.register(Tematica)
+class TematicaAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'sector')
+    list_filter = ('sector',)
+    search_fields = ('nome',)
 
 @admin.register(BoardBlock)
 class BoardBlockAdmin(admin.ModelAdmin):

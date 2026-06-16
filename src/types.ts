@@ -24,12 +24,19 @@ export interface Fase {
   status: 'Pendente' | 'Em andamento' | 'Concluída';
 }
 
+export interface Tematica {
+  id: string;
+  nome: string;
+  sector: string;
+}
+
 export interface Documento {
   id: string;
   nome: string;
   dataUpload: string;
   tamanho: string;
   uploadedBy: string; // User name
+  tipo: 'informacao' | 'produtividade';
 }
 
 export interface Comentario {
@@ -72,6 +79,7 @@ export interface Portaria {
     sector: string;
   };
 
+  tematicas: Tematica[];
   documentos: Documento[];
   comentarios: Comentario[];
   
